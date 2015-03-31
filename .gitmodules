@@ -1,0 +1,3 @@
+[submodule "well-rested-tests-server/django-vagrant-chef"]
+	path = well-rested-tests-server/django-vagrant-chef
+	url = https://github.com/maigfrga/django-vagrant-chef.git
