@@ -27,32 +27,67 @@ Vagrant.configure("2") do |global_config|
       chef.json = {
         "postgresql" => {
             "password" => {
-                "postgres" => "md58a2abbe42d6c5bb2181ac0c2fcefad91"
-            }
+                "postgres" => "md58a2abbe42d6c5bb2181ac0c2fcefad91",
+                "django" => "md58a2abbe42d6c5bb2181ac0c2fcefad91",
+            },
+            "pg_hba" => [
+                {"type" => "local", "db" => "all" , "user" => "postgres", "addr" => "", "method" => "ident" },
+                {"type" => "local", "db" => "django", "user" => "django", "method" => "md5" }
+            ],
+            "logging_collector" => "on",
+            "log_directory" => "/var/log/postgresql/",
         },
         "python" => {
             "install_method" => "package",
-            "venv_dir" => "/svr/env/",
+            "venv_dir" => "/vagrant/env/",
+        },
+        "ssl_certificates" => {
+            "cert_items" => "star_nt_dev"
         },
         "django" => {
             "python" => {
                 "packages" => [
                     "psycopg2",
                     "django",
-                    "django-rest-framework"
+                    "gunicorn",
+                    "djangorestframework"
                 ],
+                "venv_dir" => "/vagrant/env/",
+                "install_method" => "package",
+                "gid" => "vagrant"
             },
             "app" => {
                 "project_home" => "/vagrant/well-rested-tests-server",
                 "settings" => "project.settings",
                 "port" => "8080"
             },
+            "postgresql" => {
+                "database" => "django",
+                "user" => "django",
+                "password" => "md58a2abbe42d6c5bb2181ac0c2fcefad91",
+                "encoding" => "UTF-8"
+            },
+            "gunicorn" => {
+                "working_dir" => "/vagrant/well-rested-tests-server",
+                "port" => "26456",
+                "workers" => 2,
+                "timeout" => 60,
+                "settings" => "project.settings",
+                "app" => "ds3"
+            },
+            "nginx" => {
+                "server_name" => "django.io",
+            },
+            "ssl" => {
+                "cert_name" => "star_nt_dev"
+            },
+            "log_dir" => "/var/log/",
         },
         "supervisor" => {
             "inet_username" => "vagrant",
             "inet_password" => "vagrant"
         }
-      }
+    }
     end
     config.vm.hostname = hostname
     config.vm.box = box_name
