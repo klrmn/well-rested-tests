@@ -1,0 +1,15 @@
+[submodule "well-rested-tests-server/cookbooks/python"]
+	path = well-rested-tests-server/cookbooks/python
+	url = git@github.com:poise/python.git
+[submodule "well-rested-tests-server/cookbooks/apt"]
+	path = well-rested-tests-server/cookbooks/apt
+	url = git@github.com:opscode-cookbooks/apt.git
+[submodule "well-rested-tests-server/cookbooks/yum-epel"]
+	path = well-rested-tests-server/cookbooks/yum-epel
+	url = git@github.com:chef-cookbooks/yum-epel.git
+[submodule "well-rested-tests-server/cookbooks/yum"]
+	path = well-rested-tests-server/cookbooks/yum
+	url = git@github.com:chef-cookbooks/yum.git
+[submodule "well-rested-tests-server/cookbooks/build-essential"]
+	path = well-rested-tests-server/cookbooks/build-essential
+	url = git@github.com:opscode-cookbooks/build-essential.git

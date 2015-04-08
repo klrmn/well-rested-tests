@@ -52,3 +52,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# vagrant
+.vagrant/
+
+# other branch's stuff
+testtools/
+well-rested-tests-server/django-vagrant-chef/
