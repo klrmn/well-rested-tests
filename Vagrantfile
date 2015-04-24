@@ -1,7 +1,7 @@
 hostname = (ENV['VAGRANT_HOSTNAME'] || 'wrt-server')
 ip_addr = (ENV['VAGRANT_IP'] || "192.168.8.80")
 box_name = (ENV['VAGRANT_BOX'] || "trusty")
-box_url = (ENV['VAGRANT_BOX'] || "https://atlas.hashicorp.com/ubuntu/boxes/trusty64/versions/14.04/providers/virtualbox.box")
+box_url = (ENV['VAGRANT_BOX_URL'] || "https://atlas.hashicorp.com/ubuntu/boxes/trusty64/versions/14.04/providers/virtualbox.box")
 current_datetime = Time.now.strftime("%Y%m%d-%H%M%S")
 
 Vagrant.configure("2") do |global_config|
@@ -26,7 +26,8 @@ Vagrant.configure("2") do |global_config|
                 "python" => {
                     "packages" => [
                         "django",
-                        "djangorestframework"
+                        "djangorestframework",
+                        "django-filter",
                     ],
                 }
             },
@@ -36,8 +37,8 @@ Vagrant.configure("2") do |global_config|
                     "gid" => "vagrant"
                 },
                 "app" => {
-                    "project_home" => "/vagrant/well-rested-tests-server",
-                    "settings" => "project.settings",
+                    "project_home" => "/vagrant/well-rested-tests-server/wrt/",
+                    "settings" => "wrt.settings",
                     "port" => "8080"
                 },
                 "log_dir" => "/var/log/",
