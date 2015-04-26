@@ -18,11 +18,15 @@ figure out how to provision
 * store files on swift https://github.com/blacktorn/django-storage-swift
 * ldap auth
 * api keys for rest
-* run 'belongs to' someone
+* admin-only DELETE
+* admin-only project POST
 
 
 # Provisioning Steps
 * python manage.py migrate
 * python manage.py createsuperuser
-* python manage.py makemigrations wrt
 * python manage.py runserver 0.0.0.0:8000
+
+# Development Cycle
+* make Model (database) changes
+* python manage.py makemigrations wrt && python manage.py migrate
