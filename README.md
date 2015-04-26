@@ -15,3 +15,14 @@ time / filtered by environmental variables
 figure out how to provision
 * consider using https://github.com/poise/application_python
   instead of https://github.com/maigfrga/django-vagrant-chef
+* store files on swift https://github.com/blacktorn/django-storage-swift
+* ldap auth
+* api keys for rest
+* run 'belongs to' someone
+
+
+# Provisioning Steps
+* python manage.py migrate
+* python manage.py createsuperuser
+* python manage.py makemigrations wrt
+* python manage.py runserver 0.0.0.0:8000

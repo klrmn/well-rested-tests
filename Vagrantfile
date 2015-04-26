@@ -28,6 +28,8 @@ Vagrant.configure("2") do |global_config|
                         "django",
                         "djangorestframework",
                         "django-filter",
+                        "Pillow",
+                        "django-storage-swift",
                     ],
                 }
             },
@@ -38,7 +40,7 @@ Vagrant.configure("2") do |global_config|
                 },
                 "app" => {
                     "project_home" => "/vagrant/well-rested-tests-server/wrt/",
-                    "settings" => "wrt.settings",
+                    "settings" => "settings",
                     "port" => "8080"
                 },
                 "log_dir" => "/var/log/",
