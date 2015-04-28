@@ -4,6 +4,8 @@ from django.contrib import admin     # admin.py
 from django.test import TestCase     # tests.py
 from rest_framework import serializers, viewsets
 
+import permissions
+
 
 class Case(models.Model):
 
@@ -23,3 +25,4 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
 class CaseViewSet(viewsets.ModelViewSet):
     queryset = Case.objects.all()
     serializer_class = CaseSerializer
+    permission_classes = (permissions.CreateOnly,)

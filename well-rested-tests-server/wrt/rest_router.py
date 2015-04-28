@@ -1,24 +1,12 @@
-from django.contrib.auth.models import User
 from rest_framework import routers, serializers, viewsets
 from attachment import ImageViewSet, TextViewSet
+from user import UserViewSet
 from case import CaseViewSet
 from run import RunViewSet
 from result import ResultViewSet
 from project import ProjectViewSet
 from run import RunSerializer
 from run_env_var import RunEnvVarViewSet
-
-
-# Serializers define the API representation.
-class UserSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = User
-        fields = ('url', 'username', 'email', 'is_staff')
-
-# ViewSets define the view behavior.
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
 
 # Routers provide an easy way of automatically determining the URL conf.

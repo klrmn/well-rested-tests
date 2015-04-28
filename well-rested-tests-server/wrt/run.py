@@ -6,12 +6,13 @@ from rest_framework import serializers, viewsets
 from django.contrib.auth.models import User
 
 from project import Project
+import permissions
 
 
 class Run(models.Model):
     project = models.ForeignKey(Project)
     # TODO: figure out a way to make user self-fill-in
-    user = models.ForeignKey(User, null=True)
+    owner = models.ForeignKey(User, null=True, blank=True)
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     # TODO: fill this in when we know the run is done
@@ -33,3 +34,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
+    permission_classes = (permissions.OnlyAdminCanDelete,)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

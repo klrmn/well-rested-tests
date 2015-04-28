@@ -5,6 +5,7 @@ from django.test import TestCase     # tests.py
 from rest_framework import serializers, viewsets
 
 from result import Result
+import permissions
 
 
 class Attachment(models.Model):
@@ -38,8 +39,10 @@ class TextSerializer(serializers.HyperlinkedModelSerializer):
 class ImageViewSet(viewsets.ModelViewSet):
     queryset = ImageAttachment.objects.all()
     serializer_class = ImageSerializer
+    permission_classes = (permissions.CreateOnly,)
 
 
 class TextViewSet(viewsets.ModelViewSet):
     queryset = TextAttachment.objects.all()
     serializer_class = TextSerializer
+    permission_classes = (permissions.CreateOnly,)

@@ -5,6 +5,7 @@ from django.test import TestCase     # tests.py
 from rest_framework import serializers, viewsets
 
 from run import Run
+import permissions
 
 
 class RunEnvVar(models.Model):
@@ -25,3 +26,4 @@ class RunEnvVarSerializer(serializers.HyperlinkedModelSerializer):
 class RunEnvVarViewSet(viewsets.ModelViewSet):
     queryset = RunEnvVar.objects.all()
     serializer_class = RunEnvVarSerializer
+    permission_classes = (permissions.CreateOnly,)

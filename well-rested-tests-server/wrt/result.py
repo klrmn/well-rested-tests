@@ -3,9 +3,11 @@ from django.shortcuts import render  # views.py
 from django.contrib import admin     # admin.py
 from django.test import TestCase     # tests.py
 from rest_framework import serializers, viewsets
+from django.contrib.auth.models import User
 
 from run import Run
 from case import Case
+import permissions
 
 
 class Result(models.Model):
@@ -13,6 +15,7 @@ class Result(models.Model):
     # discovered for this test run
     case = models.ForeignKey(Case)
     run = models.ForeignKey(Run)
+    owner = models.ForeignKey(User, null=True, blank=True)
     # TODO: populate start_time by fake 'start' api
     start_time = models.DateTimeField(
         'Start Datetime', null=True)
@@ -47,3 +50,7 @@ class ResultSerializer(serializers.HyperlinkedModelSerializer):
 class ResultViewSet(viewsets.ModelViewSet):
     queryset = Result.objects.all()
     serializer_class = ResultSerializer
+    permission_classes = (permissions.OnlyAdminCanDelete,)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
