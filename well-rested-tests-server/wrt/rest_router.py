@@ -3,7 +3,7 @@ from rest_framework import routers, serializers, viewsets
 from attachment import ImageViewSet, TextViewSet
 from case import CaseViewSet
 from run import RunViewSet
-from case_run import CaseRunViewSet
+from result import ResultViewSet
 from project import ProjectViewSet
 from run import RunSerializer
 from run_env_var import RunEnvVarViewSet
