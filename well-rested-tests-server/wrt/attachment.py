@@ -4,11 +4,11 @@ from django.contrib import admin     # admin.py
 from django.test import TestCase     # tests.py
 from rest_framework import serializers, viewsets
 
-from case_run import CaseRun
+from result import Result
 
 
 class Attachment(models.Model):
-    case_run = models.ForeignKey(CaseRun)
+    result = models.ForeignKey(Result)
 
 
 class ImageAttachment(Attachment):
@@ -25,13 +25,13 @@ class TextAttachment(Attachment):
 class ImageSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = ImageAttachment
-        fields = ('id', 'url', 'case_run', 'file')
+        fields = ('id', 'url', 'result', 'file')
 
 
 class TextSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = TextAttachment
-        fields = ('id', 'url', 'case_run', 'file')
+        fields = ('id', 'url', 'result', 'file')
 
 
 # ViewSets define the view behavior.

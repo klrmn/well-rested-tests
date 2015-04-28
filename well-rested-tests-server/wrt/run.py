@@ -16,6 +16,8 @@ class Run(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     # TODO: fill this in when we know the run is done
     # TODO: might be a fake api not backed by a model
+    # TODO: also, mark all related results aborted when
+    # TODO: finishing run
     duration = models.DurationField(
         null=True, blank=True, editable=False)
 
