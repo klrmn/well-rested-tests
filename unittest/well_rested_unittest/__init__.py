@@ -6,5 +6,9 @@ from program import *
 __unittest = True
 
 
-if __name__ == '__main__':
+def main():
     FullyConfigurableTestProgram().runTests()
+
+
+if __name__ == '__main__':
+    main()

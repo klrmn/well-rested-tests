@@ -12,7 +12,7 @@ setup(
     py_modules=['well_rested_unittest'],
     entry_points={
         'console_scripts': [
-            'wrtest = well_rested_unittest.FullyConfigurableTestProgram',
+            'wrtest = well_rested_unittest:main',
         ],
     },
     license='Mozilla Public License 2.0 (MPL 2.0)',
