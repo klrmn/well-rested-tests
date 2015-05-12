@@ -8,11 +8,12 @@ setup(
     author_email='lklrmn@gmail.com',
     url='https://github.com/klrmn/well-rested-tests/unittest',
     install_requires=['unittest2==1.0.0', 'testtools==1.7.1',
-                      'requests', 'six'],
+                      'requests', 'six', 'testresources', 'fixtures',],
     py_modules=['well_rested_unittest'],
     entry_points={
         'console_scripts': [
             'wrtest = well_rested_unittest:main',
+            'wrt = well_rested_unittest:wrt',
         ],
     },
     license='Mozilla Public License 2.0 (MPL 2.0)',
