@@ -3,6 +3,7 @@ from runner import *
 from loader import *
 from program import *
 from suite import *
+from case import *
 
 __unittest = True
 
