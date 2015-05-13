@@ -60,3 +60,6 @@ target/
 # other branch's stuff
 testtools/
 well-rested-tests-server/django-vagrant-chef/
+
+# config files
+unittest/.wrt.conf

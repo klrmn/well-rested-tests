@@ -46,7 +46,7 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
             loaderClass=NewLoader,
             runnerClass=NewRunner,
             resultClass=NewResult,
-            argv=['fctest', '-q', '-l', '--failfast', '--wrt-conf', 'file.conf', 'sample_tests'])
+            argv=['fctest', '-q', '-l', '--failfast', 'sample_tests'])
         self.assertEqual(program.suiteClass, NewSuite)
         self.assertTrue(isinstance(program.testLoader, NewLoader))
         self.assertTrue(isinstance(program.testRunner, NewRunner))
@@ -57,7 +57,6 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertFalse(program.testResult.showAll)
         self.assertTrue(program.testResult.failfast)
         self.assertEqual(program.testResult.printing, 1)
-        self.assertIsNotNone(program.testResult.wrt_conf)
 
     def test_help(self):
         program = FullyConfigurableTestProgram(argv=['fctest', 'sample_tests'])

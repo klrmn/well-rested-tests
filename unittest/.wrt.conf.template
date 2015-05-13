@@ -1,0 +1,6 @@
+# template for .wrt.conf
+[default]
+SERVER=
+USERNAME=
+PASSWORD=
+PROJECT_NAME=

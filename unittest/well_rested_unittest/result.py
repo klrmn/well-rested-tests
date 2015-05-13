@@ -2,6 +2,7 @@ import testtools
 import unittest2
 import requests
 import sys
+import os
 import time
 import argparse
 import ConfigParser
@@ -66,7 +67,7 @@ class WellRestedTestResult(
         group.add_argument('-e', '--early-printing', dest='printing',
                             action='store_const', const=EARLY,
                             help="print details immediately")
-        group.add_argument('-w', '--wrt-config', dest='wrt_conf',
+        group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                             help='path to well-rested-tests config file')
         return parser
 
@@ -91,7 +92,7 @@ class WellRestedTestResult(
   -q, --quiet           Silent output
   -l, --late-printing   don't print test starts
   -e, --early-printing  print details immediately
-  -w WRT_CONF, --wrt-config WRT_CONF
+  -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
 
@@ -105,7 +106,7 @@ class WellRestedTestResult(
                           >1 (reason only), >2 (verbose),
                           will be set to 0 if stream is None
         :param printing: -1 (early), 0 (default), 1 (late)
-        :param wrt_config: path to well-rested-tests config file
+        :param wrt_conf: path to well-rested-tests config file
         :return:
         """
         # initialize all the things
@@ -129,8 +130,13 @@ class WellRestedTestResult(
         self.dots = verbosity == 1
         self.printing = printing
         self.wrt_conf = wrt_conf
-        # self.config = ConfigParser.ConfigParser()
-        # self.config.read(wrt_config)
+        if self.wrt_conf:
+            if os.path.isfile(self.wrt_conf):
+                self.config = ConfigParser.ConfigParser()
+                self.config.read(wrt_config)
+            else:
+                sys.stderr.write('ERROR: wrt_conf provided but not a file.\n')
+                exit(1)
 
     def _details_to_str(self, details, special=None):
         if 'reason' in details:
