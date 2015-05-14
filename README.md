@@ -18,8 +18,6 @@ figure out how to provision
 * store files on swift https://github.com/blacktorn/django-storage-swift
 * ldap auth
 * api keys for rest
-* admin-only DELETE
-* admin-only project POST
 
 
 # Provisioning Steps

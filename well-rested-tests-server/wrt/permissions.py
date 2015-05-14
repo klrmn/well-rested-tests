@@ -80,7 +80,7 @@ class OnlyAdminCanDelete(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method == 'OPTIONS':
             return True
-        if request.method in permissions.SAFE_METHODS and \
+        if request.method in SAFE_METHODS and \
                 request.user and request.user.is_authenticated():
             return True
         if request.method == 'DELETE' and \
@@ -95,7 +95,7 @@ class OnlyAdminCanDelete(BasePermission):
     def has_permission(self, request, view):
         if request.method == 'OPTIONS':
             return True
-        if request.method in permissions.SAFE_METHODS and \
+        if request.method in SAFE_METHODS and \
                 request.user and request.user.is_authenticated():
             return True
         if request.method == 'POST' and \

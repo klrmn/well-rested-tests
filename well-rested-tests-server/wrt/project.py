@@ -11,6 +11,10 @@ class Project(models.Model):
     name = models.CharField(max_length=200)
 
 
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
+
+
 # Serializers define the API representation.
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
