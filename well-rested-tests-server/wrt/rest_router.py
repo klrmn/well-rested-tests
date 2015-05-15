@@ -6,7 +6,7 @@ from run import RunViewSet
 from result import ResultViewSet
 from project import ProjectViewSet
 from run import RunSerializer
-from run_env_var import RunEnvVarViewSet
+from tag import TagViewSet
 
 
 # Routers provide an easy way of automatically determining the URL conf.
@@ -16,6 +16,6 @@ router.register(r'api/projects', ProjectViewSet)
 router.register(r'api/screenshots', ImageViewSet)
 router.register(r'api/logs', TextViewSet)
 router.register(r'api/cases', CaseViewSet)
-router.register(r'api/environments', RunEnvVarViewSet)
+router.register(r'api/tags', TagViewSet)
 router.register(r'api/results', ResultViewSet)
 router.register(r'api/runs', RunViewSet)
