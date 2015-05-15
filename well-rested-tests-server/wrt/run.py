@@ -15,10 +15,24 @@ class Run(models.Model):
     owner = models.ForeignKey(User, null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
-    # TODO: also, mark all related results aborted when
-    # TODO: finishing run
+    # TODO: on test run end:
+    # TODO:   mark all remaining inprogress results aborted
     duration = models.DurationField(
         null=True, blank=True, editable=False)
+    status = models.CharField(null=True,
+        max_length=12, blank=True,
+        choices=(
+            ('pass', 'pass'),
+            ('fail', 'fail'),
+            ('inprogress', 'inprogress'),
+            ('aborted', 'aborted'),
+        )
+    )
+    tests_run = models.IntegerField(default=0, blank=True)
+    failures = models.IntegerField(default=0, blank=True)
+    errors = models.IntegerField(default=0, blank=True)
+    xpasses = models.IntegerField(default=0, blank=True)
+    xfails = models.IntegerField(default=0, blank=True)
     tags = models.ManyToManyField(Tag, blank=True)
 
 
@@ -26,7 +40,10 @@ class Run(models.Model):
 class RunSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Run
-        fields = ('id', 'url', 'owner', 'project', 'start_time', 'end_time', 'tags')
+        fields = ('id', 'url', 'owner', 'project',
+                  'start_time', 'end_time', 'duration', 'status',
+                  'tests_run', 'failures', 'errors', 'xpasses', 'xfails',
+                  'tags')
 
 
 # ViewSets define the view behavior.
