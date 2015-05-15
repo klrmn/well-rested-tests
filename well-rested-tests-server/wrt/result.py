@@ -37,6 +37,20 @@ class Result(models.Model):
     )
     reason = models.TextField(null=True, blank=True)
 
+    def project_name(self):
+        return self.run.project.name
+
+    def run_id(self):
+        return self.run.id
+
+    def name(self):
+        return self.case.name
+
+
+class ResultAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project_name', 'run_id', 'name', 'owner',
+                    'start_time', 'end_time', 'duration', 'status', 'reason')
+
 
 # Serializers define the API representation.
 class ResultSerializer(serializers.HyperlinkedModelSerializer):

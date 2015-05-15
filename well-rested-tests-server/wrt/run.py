@@ -35,6 +35,21 @@ class Run(models.Model):
     xfails = models.IntegerField(default=0, blank=True)
     tags = models.ManyToManyField(Tag, blank=True)
 
+    def project_name(self):
+        return self.project.name
+
+    def owner_name(self):
+        if self.owner:
+            return self.owner.username
+        else:
+            return ""
+
+
+class RunAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project_name', 'owner_name',
+                    'start_time', 'end_time', 'duration', 'status',
+                    'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
+
 
 # Serializers define the API representation.
 class RunSerializer(serializers.HyperlinkedModelSerializer):

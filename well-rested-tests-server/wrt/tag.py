@@ -10,7 +10,14 @@ import permissions
 
 class Tag(models.Model):
     project = models.ForeignKey(Project)
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
+
+    def project_name(self):
+        return self.project.name
+
+
+class TagAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project_name', 'name')
 
 
 # Serializers define the API representation.

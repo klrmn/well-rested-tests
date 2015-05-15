@@ -86,7 +86,7 @@ class OnlyAdminCanDelete(BasePermission):
         if request.method == 'DELETE' and \
                 request.user and request.user.is_staff:
             return True
-        if reuqest.method == 'PUT' and \
+        if request.method == 'PUT' and \
                 request.user and request.user.is_authenticated() and \
                 request.user == obj.owner:
             return True
