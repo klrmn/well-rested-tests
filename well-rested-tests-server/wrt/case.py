@@ -15,12 +15,11 @@ class Case(models.Model):
         max_length=200, unique=True,
         verbose_name="Test Case Name")
 
-    def project_name(self):
-        return self.project.name
-
+    def __str__(self):
+        return self.name
 
 class CaseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'project_name', 'name')
+    list_display = ('id', 'project', 'name')
 
 
 # Serializers define the API representation.

@@ -11,8 +11,6 @@ import permissions
 
 
 class Result(models.Model):
-    # post with just case and run to specify that a test has been
-    # discovered for this test run
     case = models.ForeignKey(Case)
     run = models.ForeignKey(Run)
     owner = models.ForeignKey(User)
@@ -26,6 +24,8 @@ class Result(models.Model):
         choices=(
             ('exists', 'exists'),
             ('pass', 'pass'),
+            ('xpass', 'xpass'),
+            ('xfail', 'xfail'),
             ('fail', 'fail'),
             ('skip', 'skip'),
             ('unknown', 'unknown'),
@@ -35,22 +35,17 @@ class Result(models.Model):
     )
     reason = models.TextField(null=True, blank=True)
 
-    def project_name(self):
-        return self.run.project.name
+    def __str__(self):
+        return '%s %s' % (self.case.name, self.run.id)
 
-    def runid(self):  # TODO: displaying "Run object" instead
-        return self.run.id
-
-    def owner_name(self):
-        return self.owner.username
-
-    def name(self):
-        return self.case.name
+    def project(self):
+        return self.case.project
 
 
 class ResultAdmin(admin.ModelAdmin):
-    list_display = ('id', 'project_name', 'runid', 'name', 'owner_name',
+    list_display = ('__str__',
                     'start_time', 'end_time', 'duration', 'status', 'reason')
+    list_filter = ('run', 'case', 'status', 'reason', 'start_time')
 
 
 # Serializers define the API representation.

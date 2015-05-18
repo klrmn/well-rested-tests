@@ -12,12 +12,12 @@ class Tag(models.Model):
     project = models.ForeignKey(Project)
     name = models.CharField(max_length=200, unique=True)
 
-    def project_name(self):
-        return self.project.name
+    def __str__(self):
+        return self.name
 
 
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('id', 'project_name', 'name')
+    list_display = ('id', 'project', 'name')
 
 
 # Serializers define the API representation.

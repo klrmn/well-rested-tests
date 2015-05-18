@@ -35,20 +35,19 @@ class Run(models.Model):
     xfails = models.IntegerField(default=0, blank=True)
     tags = models.ManyToManyField(Tag, blank=True)
 
-    def project_name(self):
-        return self.project.name
+    def __str__(self):
+        return '%s %s (%s)' % (self.project, self.id, self.owner)
 
-    def owner_name(self):
-        if self.owner:
-            return self.owner.username
-        else:
-            return ""
+    def description(self):
+        tags = [tag.name for tag in self.tags.all()]
+        print(self.tags)
+        return ' '.join(tags)
 
 
 class RunAdmin(admin.ModelAdmin):
-    list_display = ('id', 'project_name', 'owner_name',
-                    'start_time', 'end_time', 'duration', 'status',
-                    'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
+    list_display = ('id', 'start_time', 'end_time', 'duration', 'status', 'description',
+                    'registered_tests', 'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
+    list_filter = ('project', 'owner', 'status', 'start_time')
 
 
 # Serializers define the API representation.
@@ -66,6 +65,3 @@ class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
     permission_classes = (permissions.OnlyAdminCanDelete,)
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
