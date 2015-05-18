@@ -1,6 +1,10 @@
 # template for .wrt.conf
 [default]
-SERVER=
-USERNAME=
-PASSWORD=
-PROJECT_NAME=
+SERVER: <ip:[port]>
+USERNAME: <username>
+PASSWORD: <password>
+PROJECT_NAME: <name>
+
+# provide labels and shell commands that output the values
+[tags]
+REVISION: <shell command that outputs unique revision specifier>

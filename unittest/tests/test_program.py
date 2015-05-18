@@ -38,7 +38,7 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertFalse(program.testResult.showAll)
         self.assertFalse(program.testResult.failfast)
         self.assertFalse(program.testResult.printing)
-        self.assertIsNone(program.testResult.wrt_conf)
+        self.assertIsNone(program.testResult.wrt_client)
 
     def test_specific_classes_with_argv(self):
         program = FullyConfigurableTestProgram(

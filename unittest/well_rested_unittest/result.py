@@ -5,7 +5,7 @@ import sys
 import os
 import time
 import argparse
-import ConfigParser
+import wrtclient
 
 __unittest = True
 
@@ -120,6 +120,7 @@ class WellRestedTestResult(
         self.expectedFailures = []
         self.unexpectedSuccesses = []
         self._test_run = None
+        self.wrt_client = None
 
         unittest2.TextTestResult.__init__(self, self.stream, False, verbosity)
 
@@ -129,14 +130,8 @@ class WellRestedTestResult(
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.printing = printing
-        self.wrt_conf = wrt_conf
-        if self.wrt_conf:
-            if os.path.isfile(self.wrt_conf):
-                self.config = ConfigParser.ConfigParser()
-                self.config.read(wrt_config)
-            else:
-                sys.stderr.write('ERROR: wrt_conf provided but not a file.\n')
-                exit(1)
+        if wrt_conf:
+            self.wrt_client = wrtclient.WRTClient(wrt_conf)
 
     def _details_to_str(self, details, special=None):
         if 'reason' in details:
@@ -148,13 +143,29 @@ class WellRestedTestResult(
     # run related methods
     def startTestRun(self):
         self.start_time = time.time()
-        # create test run on well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.startTestRun(
+                timestamp=self.start_time)
         unittest2.TextTestResult.startTestRun(self)
 
     def stopTestRun(self):
-        # complete test run on well-rested-tests
-        testtools.TestResult.stopTestRun(self)
         self.end_time = time.time()
+        if self.wasSuccessful():
+            status='pass'
+        else:
+            status='fail'
+        if self.wrt_client:
+            self.wrt_client.stopTestRun(
+                timestamp=self.end_time,
+                duration=self.end_time - self.start_time,
+                status=status,
+                tests_run=self.testsRun,
+                failures=len(self.failures),
+                errors=len(self.errors),
+                skips=len(self.skipped),
+                xpasses=len(self.unexpectedSuccesses),
+                xfails=len(self.expectedFailures))
+        testtools.TestResult.stopTestRun(self)
         if self.dots or self.showAll:
             self.printErrors()
             self.printSummary()
@@ -166,7 +177,8 @@ class WellRestedTestResult(
 
     def startTest(self, test):
         self.test_start_time = time.time()
-        # update well-rested-tests with in-progress state and start time
+        if self.wrt_client:
+            self.wrt_client.startTest(test, timestamp=self.test_start_time)
         if not self.printing == LATE:
             testtools.TestResult.startTest(self, test)
 
@@ -177,11 +189,14 @@ class WellRestedTestResult(
             testtools.TestResult.startTest(self, test)
         if self.showAll:
             self.stream.writeln(" in %.3f" % (self.test_end_time - self.test_start_time))
-        # update well-rested-tests with end time
+        if self.wrt_client:
+            self.wrt_client.stopTest(test, timestamp=self.test_end_time,
+                                     duration=(self.test_end_time - self.test_start_time))
         testtools.TestResult.stopTest(self, test)
 
     def addExpectedFailure(self, test, err=None, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.xfailTest(test, err, details)
         if self.showAll:
             self.stream.write("expected failure")
         elif self.dots:
@@ -191,7 +206,8 @@ class WellRestedTestResult(
             self, test, err, details)
 
     def addError(self, test, err=None, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details)
         if self.showAll:
             self.stream.write("ERROR")
             if details and 'reason' in details:
@@ -203,7 +219,8 @@ class WellRestedTestResult(
             self, test, err, details)
 
     def addFailure(self, test, err=None, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details)
         if self.showAll:
             self.stream.write("FAIL")
             if details and 'reason' in details:
@@ -215,7 +232,8 @@ class WellRestedTestResult(
             self, test, err, details)
 
     def addSkip(self, test, reason=None, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.skipTest(test, reason)
         if self.showAll:
             self.stream.write("skipped %r" % (reason,))
         elif self.dots:
@@ -225,7 +243,8 @@ class WellRestedTestResult(
             self, test, reason, details)
 
     def addSuccess(self, test, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.passTest(test)
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:
@@ -233,7 +252,8 @@ class WellRestedTestResult(
             self.stream.flush()
 
     def addUnexpectedSuccess(self, test, details=None):
-        # upload to well-rested-tests
+        if self.wrt_client:
+            self.wrt_client.xpassTest(test, details)
         if self.showAll:
             self.stream.write("unexpected success")
         elif self.dots:

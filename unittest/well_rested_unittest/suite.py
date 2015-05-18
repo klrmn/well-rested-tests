@@ -169,13 +169,10 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             resource.getResource(result)
             self.current_resources.add(resource)
 
-    def registerTests(self):
-        # report on existence of tests to well-rested-tests
-        pass
-
     def run(self, result):
         self.sortTests()
-        self.registerTests()
+        if result.wrt_client:
+            result.wrt_client.registerTests(self._tests)
         for test in self._tests:
             if result.shouldStop:
                 break

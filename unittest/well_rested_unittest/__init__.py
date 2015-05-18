@@ -17,5 +17,5 @@ def main():
 def wrt():
     FullyConfigurableTestProgram(
         suiteClass=suite.ErrorTolerantOptimisedTestSuite,
-        entry_settings={'verbosity': 2}
+        entry_settings={'verbosity': 2, 'wrt_conf': '.wrt.conf'}
     ).runTests()
