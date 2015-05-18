@@ -17,7 +17,7 @@ figure out how to provision
   instead of https://github.com/maigfrga/django-vagrant-chef
 * store files on swift https://github.com/blacktorn/django-storage-swift
 * ldap auth
-* api keys for rest
+* server-side for fixtures
 
 
 # Provisioning Steps

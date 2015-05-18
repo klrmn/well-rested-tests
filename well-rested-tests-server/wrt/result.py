@@ -15,11 +15,9 @@ class Result(models.Model):
     # discovered for this test run
     case = models.ForeignKey(Case)
     run = models.ForeignKey(Run)
-    owner = models.ForeignKey(User, null=True, blank=True)
-    # TODO: populate start_time by fake 'start' api
+    owner = models.ForeignKey(User)
     start_time = models.DateTimeField(
-        'Start Datetime', null=True)
-    # TODO: populate end_time, result, reason, and duration by fake api
+        'Start Datetime', null=True, blank=True)
     end_time = models.DateTimeField(
         'End Datetime', null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
@@ -40,15 +38,18 @@ class Result(models.Model):
     def project_name(self):
         return self.run.project.name
 
-    def run_id(self):
+    def runid(self):  # TODO: displaying "Run object" instead
         return self.run.id
+
+    def owner_name(self):
+        return self.owner.username
 
     def name(self):
         return self.case.name
 
 
 class ResultAdmin(admin.ModelAdmin):
-    list_display = ('id', 'project_name', 'run_id', 'name', 'owner',
+    list_display = ('id', 'project_name', 'runid', 'name', 'owner_name',
                     'start_time', 'end_time', 'duration', 'status', 'reason')
 
 
@@ -56,7 +57,7 @@ class ResultAdmin(admin.ModelAdmin):
 class ResultSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Result
-        fields = ('id', 'url', 'case', 'run', 'start_time',
+        fields = ('id', 'url', 'case', 'run', 'start_time', 'owner',
                   'end_time', 'duration', 'status', 'reason')
 
 
@@ -65,6 +66,3 @@ class ResultViewSet(viewsets.ModelViewSet):
     queryset = Result.objects.all()
     serializer_class = ResultSerializer
     permission_classes = (permissions.OnlyAdminCanDelete,)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)

@@ -9,6 +9,7 @@ from project import Project
 
 
 class Case(models.Model):
+    # TODO: add a bunch of stats
     project = models.ForeignKey(Project)
     name = models.CharField(
         max_length=200, unique=True,
@@ -26,7 +27,7 @@ class CaseAdmin(admin.ModelAdmin):
 class CaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Case
-        fields = ['id', 'url', 'name']
+        fields = ['id', 'url', 'project', 'name']
 
 
 # ViewSets define the view behavior.

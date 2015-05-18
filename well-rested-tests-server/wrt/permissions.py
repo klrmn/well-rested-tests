@@ -98,7 +98,7 @@ class OnlyAdminCanDelete(BasePermission):
         if request.method in SAFE_METHODS and \
                 request.user and request.user.is_authenticated():
             return True
-        if request.method == 'POST' and \
+        if request.method in ('POST', 'PUT') and \
                 request.user and request.user.is_authenticated():
             return True
         # PATCH not supported
