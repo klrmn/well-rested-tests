@@ -154,7 +154,7 @@ class WellRestedTestResult(
         if self.wrt_client:
             self.wrt_client.startTestRun(
                 timestamp=self.start_time)
-        if self.failing_file != self.wrt_conf:
+        if self.failing_file and self.failing_file != self.wrt_conf:
             self.failing_file = unittest2.runner._WritelnDecorator(
                 open(self.failing_file, 'wb'))
         unittest2.TextTestResult.startTestRun(self)
@@ -177,7 +177,7 @@ class WellRestedTestResult(
                 xpasses=len(self.unexpectedSuccesses),
                 xfails=len(self.expectedFailures))
         testtools.TestResult.stopTestRun(self)
-        if self.failing_file != self.wrt_conf:
+        if self.failing_file and self.failing_file != self.wrt_conf:
             self.failing_file.close()
         if self.dots or self.showAll:
             self.printErrors()
@@ -347,8 +347,12 @@ class WellRestedTestResult(
 
     def print_or_append(self, test, err, details, list):
         details = self._err_details_to_string(test, err, details)
-        if self.failing_file != self.wrt_conf:
-            self.failing_file.writeln(test.id())
+        if self.failing_file and self.failing_file != self.wrt_conf:
+            if hasattr(test, 'id'):
+                writable = test.id()
+            else:
+                writable = test
+            self.failing_file.writeln(writable)
         if self.printing == EARLY:
             list.append(test)
             self._detail = details

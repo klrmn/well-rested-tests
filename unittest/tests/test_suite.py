@@ -66,7 +66,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass1'], None)
-        result = WellRestedTestResult(verbosity=2)
+        result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertEqual(len(result.warnings), 2, result.warnings)
         self.assertEqual(len(result.infos), 6, result.infos)
@@ -77,7 +77,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass2'], None)
-        result = WellRestedTestResult(verbosity=2)
+        result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertEqual(len(result.warnings), 1, result.warnings)
         self.assertIn('booga booga', result.warnings[0][1])
@@ -89,7 +89,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        result = WellRestedTestResult(verbosity=2)
+        result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertIn(result.fixtures, (6, 9), result.warnings + result.infos)  # workaround
         self.assertFalse(len(result.warnings), result.warnings)

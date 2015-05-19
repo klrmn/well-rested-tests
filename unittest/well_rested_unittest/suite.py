@@ -227,7 +227,11 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                     self, test_case_or_suite.__class__([test]))
 
     def filter_by_ids(suite, test_ids):
-        """This will be used with --failing or --existing."""
+        """
+        Used by loader when --failing is set.
+        Will ignore any fixture names that are in the failing_file.
+        Will ignore any previously failing tests not also discovered from the testNames
+        """
         filtered = []
         for test in suite._tests:
             if test.id() in test_ids:

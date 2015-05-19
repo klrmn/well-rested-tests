@@ -30,16 +30,21 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
                             help='Run tests previously marked as fail or error')
         group.add_argument('--failing-file', dest='failing_file',
                            default='.failing',
-                           help='path to file used to store failed tests'
-                                '(default .failing). if set to the same path'
+                           help='path to file used to store failed tests '
+                                '(default .failing). if set to the same path '
                                 'as --wrt-conf, get failed tests from wrt server.')
-        group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
-                            help='path to well-rested-tests config file')
         return parser
 
     @staticmethod
     def expectedHelpText(cls):
-        return ""
+        return """
+%s:
+  --failing             Run tests previously marked as fail or error
+  --failing-file FAILING_FILE
+                        path to file used to store failed tests (default
+                        .failing). if set to the same path as --wrt-conf, get
+                        failed tests from wrt server.
+""" % cls.__name__
 
     @staticmethod
     def factory(cls, object):

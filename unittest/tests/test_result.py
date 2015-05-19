@@ -41,19 +41,19 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_failfast(self):
         result = well_rested_unittest.WellRestedTestResult(
-            failfast=True, verbosity=0)
+            failfast=True, verbosity=0, failing_file="")
         result.addFailure('test1', err=self.err)
         self.assertTrue(result.shouldStop)
 
     def test_no_failfast(self):
         result = well_rested_unittest.WellRestedTestResult(
-            failfast=False, verbosity=0)
+            failfast=False, verbosity=0, failing_file="")
         result.addFailure('test2', err=self.err)
         self.assertFalse(result.shouldStop)
 
     def test_fail_on_uxsuccess(self):
         result = well_rested_unittest.WellRestedTestResult(
-            uxsuccess_not_failure=False, verbosity=0)
+            uxsuccess_not_failure=False, verbosity=0, failing_file="")
         result.addUnexpectedSuccess('test3', details=self.details)
         self.assertTrue(len(result.unexpectedSuccesses))
         self.assertFalse(len(result.failures))
@@ -61,7 +61,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_no_fail_on_uxsuccess(self):
         result = well_rested_unittest.WellRestedTestResult(
-            uxsuccess_not_failure=True, verbosity=0)
+            uxsuccess_not_failure=True, verbosity=0, failing_file="")
         result.addUnexpectedSuccess('test4', details=self.details)
         self.assertTrue(len(result.unexpectedSuccesses))
         self.assertFalse(len(result.failures))
@@ -86,7 +86,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_startTestRun_stopTestRun(self):
         result = well_rested_unittest.WellRestedTestResult(
-            verbosity=0)
+            verbosity=0, failing_file="")
         result.startTestRun()
         self.assertIsNone(result.test_start_time)
         self.assertIsNone(result.test_end_time)
@@ -118,7 +118,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_addWarning(self):
         result = well_rested_unittest.WellRestedTestResult(
-            verbosity=0)
+            verbosity=0, failing_file="")
         result.startTestRun()
         result.addWarning('fixture1', err=self.err)
         result.addWarning('fixture2', details=self.details)
