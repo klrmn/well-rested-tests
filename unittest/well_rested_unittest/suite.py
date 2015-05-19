@@ -43,12 +43,12 @@ class DetailCollector():
 
 
 class ReportingTestResourceManager(testresources.TestResourceManager):
-    # TODO: move the DetailCollector to a method that isn't recursive?
     """Fix some problems where testresources.TestResourceManager doesn't
     actually sent the result all the way through the process.
 
     Use context manager to report results of finishedWith and getResource
     to the result."""
+    collector_class = DetailCollector
 
     def __init__(self, level=logging.INFO):
         super(ReportingTestResourceManager, self).__init__()
@@ -66,7 +66,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         dependency_resources = {}
         for name, resource in self.resources:
             dependency_resources[name] = resource.getResource(result)
-        with DetailCollector(self, result, 'Creating'):
+        with self.collector_class(self, result, 'Creating'):
             resource = self.make(dependency_resources)
         for name, value in dependency_resources.items():
             setattr(resource, name, value)
@@ -75,7 +75,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
     def _clean_all(self, resource, result):
         """Clean the dependencies from resource, and then resource itself."""
         # with DetailCollector(self, result, '-clean-all'):
-        with DetailCollector(self, result, 'Destroying'):
+        with self.collector_class(self, result, 'Destroying'):
             self.clean(resource)
         for name, manager in self.resources:
             manager.finishedWith(getattr(resource, name), result)
@@ -98,7 +98,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         for name, mgr in self.resources:
             dependency_resources[name] = mgr.reset(
                 getattr(old_resource, name), result)
-        with DetailCollector(self, result, 'Resetting'):
+        with self.collector_class(self, result, 'Resetting'):
             resource = self._reset(old_resource, dependency_resources)
         for name, value in dependency_resources.items():
             setattr(resource, name, value)
@@ -124,9 +124,11 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
+    # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
     # TODO: filter on failing (tests run but not passed)
     # TODO: filter on existing (tests reported but not run)
+    # TODO: implement create-or-fetch of well-rested-tests run
     # TODO: implement reporting test existence to well-rested-tests
     # TODO: --parallel
     """
