@@ -1,5 +1,7 @@
 import unittest2
 import os
+import sys
+import wrtclient
 
 __unittest = True
 
@@ -29,7 +31,10 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         group.add_argument('--failing-file', dest='failing_file',
                            default='.failing',
                            help='path to file used to store failed tests'
-                                '(default .failing)')
+                                '(default .failing). if set to the same path'
+                                'as --wrt-conf, get failed tests from wrt server.')
+        group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
+                            help='path to well-rested-tests config file')
         return parser
 
     @staticmethod
@@ -42,14 +47,17 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
             suiteClass=object.suiteClass or unittest2.TestSuite,
             failing=object.failing or False,
             failing_file=object.failing_file or '.failing',
+            wrt_conf=object.wrt_conf or None,
         )
 
     def __init__(self, suiteClass=unittest2.TestSuite,
-                 failing=False, failing_file='.failing'):
+                 failing=False, failing_file='.failing',
+                 wrt_conf=None):
         super(AutoDiscoveringTestLoader, self).__init__()
         self.suiteClass = suiteClass
         self.failing = failing
         self.failing_file = failing_file
+        self.wrt_conf = wrt_conf
 
     def loadTestsFromNames(self, names, module=None):
         """Return a suite of all tests cases found using the given sequence
@@ -64,7 +72,12 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
                 suites.extend(self.loadTestsFromName(name, module))
         suite = self.suiteClass(suites)
         if self.failing and hasattr(suite, 'filter_by_ids'):
-            with open(self.failing_file, 'rb') as f:
-                ids = f.read().split()
+            if self.failing_file == self.wrt_conf:
+                self.wrt_client = wrtclient.WRTClient(
+                    self.wrt_conf, unittest2.runner._WritelnDecorator(sys.stderr))
+                ids = self.wrt_client.failing()
+            else:
+                with open(self.failing_file, 'rb') as f:
+                    ids = f.read().split()
             return suite.filter_by_ids(ids)
         return suite

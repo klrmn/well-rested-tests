@@ -15,8 +15,6 @@ LATE = 1
 
 class WellRestedTestResult(
     testtools.TestResult, unittest2.TextTestResult):
-    # TODO: implement communication with WRT server
-    # TODO: implement --early-printing
     # TODO: abort on too many fixture warnings:infos
     # TODO: abort on too many test failures/errors
     """
@@ -126,6 +124,7 @@ class WellRestedTestResult(
         self.unexpectedSuccesses = []
         self._detail = ""
         self._test_run = None
+        self.wrt_conf = None
         self.wrt_client = None
 
         unittest2.TextTestResult.__init__(self, self.stream, False, verbosity)
@@ -138,7 +137,9 @@ class WellRestedTestResult(
         self.dots = verbosity == 1
         self.printing = printing
         if wrt_conf:
-            self.wrt_client = wrtclient.WRTClient(wrt_conf)
+            self.wrt_conf = wrt_conf
+            self.wrt_client = wrtclient.WRTClient(
+                wrt_conf, self.stream, debug=False)
 
     def _details_to_str(self, details, special=None):
         if 'reason' in details:
@@ -153,8 +154,9 @@ class WellRestedTestResult(
         if self.wrt_client:
             self.wrt_client.startTestRun(
                 timestamp=self.start_time)
-        self.failing_file = unittest2.runner._WritelnDecorator(
-            open(self.failing_file, 'wb'))
+        if self.failing_file != self.wrt_conf:
+            self.failing_file = unittest2.runner._WritelnDecorator(
+                open(self.failing_file, 'wb'))
         unittest2.TextTestResult.startTestRun(self)
 
     def stopTestRun(self):
@@ -175,7 +177,8 @@ class WellRestedTestResult(
                 xpasses=len(self.unexpectedSuccesses),
                 xfails=len(self.expectedFailures))
         testtools.TestResult.stopTestRun(self)
-        self.failing_file.close()
+        if self.failing_file != self.wrt_conf:
+            self.failing_file.close()
         if self.dots or self.showAll:
             self.printErrors()
             self.printSummary()
@@ -344,7 +347,8 @@ class WellRestedTestResult(
 
     def print_or_append(self, test, err, details, list):
         details = self._err_details_to_string(test, err, details)
-        self.failing_file.writeln(test.id())
+        if self.failing_file != self.wrt_conf:
+            self.failing_file.writeln(test.id())
         if self.printing == EARLY:
             list.append(test)
             self._detail = details
