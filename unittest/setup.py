@@ -14,6 +14,7 @@ setup(
         'console_scripts': [
             'wrtest = well_rested_unittest:main',
             'wrt = well_rested_unittest:wrt',
+            'otest = well_rested_unittest:otest',
         ],
     },
     license='Mozilla Public License 2.0 (MPL 2.0)',

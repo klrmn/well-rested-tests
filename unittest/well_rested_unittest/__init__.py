@@ -19,3 +19,10 @@ def wrt():
         suiteClass=suite.ErrorTolerantOptimisedTestSuite,
         entry_settings={'verbosity': 2, 'wrt_conf': '.wrt.conf'}
     ).runTests()
+
+
+def otest():
+    FullyConfigurableTestProgram(
+        suiteClass=suite.ErrorTolerantOptimisedTestSuite,
+        entry_settings={'verbosity': 2, 'printing': EARLY}
+    ).runTests()
