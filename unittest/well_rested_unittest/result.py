@@ -119,6 +119,7 @@ class WellRestedTestResult(
         self._tags = testtools.tags.TagContext()
         self.expectedFailures = []
         self.unexpectedSuccesses = []
+        self._detail = ""
         self._test_run = None
         self.wrt_client = None
 
@@ -189,6 +190,12 @@ class WellRestedTestResult(
             testtools.TestResult.startTest(self, test)
         if self.showAll:
             self.stream.writeln(" in %.3f" % (self.test_end_time - self.test_start_time))
+        if self.printing == EARLY:
+            if self._detail:
+                self.stream.writeln(self.separator1)
+                self.stream.writeln(self._detail)
+                self.stream.writeln(self.separator2)
+                self._detail = ""
         if self.wrt_client:
             self.wrt_client.stopTest(test, timestamp=self.test_end_time,
                                      duration=(self.test_end_time - self.test_start_time))
@@ -215,8 +222,9 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('E')
             self.stream.flush()
-        testtools.TestResult.addError(
-            self, test, err, details)
+        self.print_or_append(test, err, details, self.errors)
+        if self.failfast:
+            self.stop()
 
     def addFailure(self, test, err=None, details=None):
         if self.wrt_client:
@@ -228,8 +236,9 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('F')
             self.stream.flush()
-        testtools.TestResult.addFailure(
-            self, test, err, details)
+        self.print_or_append(test, err, details, self.failures)
+        if self.failfast:
+            self.stop()
 
     def addSkip(self, test, reason=None, details=None):
         if self.wrt_client:
@@ -276,6 +285,12 @@ class WellRestedTestResult(
         self.test_end_time = time.time()
         if self.showAll:
             self.stream.writeln(" in %.3f" % (self.test_end_time - self.test_start_time))
+        if self.printing == EARLY:
+            if self._detail:
+                self.stream.writeln(self.separator1)
+                self.stream.writeln(self._detail)
+                self.stream.writeln(self.separator2)
+                self._detail = ""
         # update well-rested-tests with end time
 
     def addWarning(self, fixture, err=None, details=None):
@@ -291,8 +306,7 @@ class WellRestedTestResult(
             self.stream.write("warning")
             if details and 'reason' in details:
                 self.stream.write(' %s ' % details['reason'].as_text())
-        self.warnings.append(
-            (fixture, self._err_details_to_string(fixture, err, details)))
+        self.print_or_append(fixture, err, details, self.warnings)
 
     def addInfo(self, fixture):
         """
@@ -319,12 +333,21 @@ class WellRestedTestResult(
             return not (self.errors or self.failures or
                         self.unexpectedSuccesses)
 
+    def print_or_append(self, test, err, details, list):
+        details = self._err_details_to_string(test, err, details)
+        if self.printing == EARLY:
+            list.append(test)
+            self._detail = details
+        else:
+            list.append((test, details))
+
     def printErrors(self):
         if self.dots or self.showAll:
             self.stream.writeln()
-        self.printErrorList('WARNING', self.warnings)
-        self.printErrorList('ERROR', self.errors)
-        self.printErrorList('FAIL', self.failures)
+        if self.printing != EARLY:
+            self.printErrorList('WARNING', self.warnings)
+            self.printErrorList('ERROR', self.errors)
+            self.printErrorList('FAIL', self.failures)
 
     def printErrorList(self, flavour, errors):
         unittest2.TextTestResult.printErrorList(self, flavour, errors)
