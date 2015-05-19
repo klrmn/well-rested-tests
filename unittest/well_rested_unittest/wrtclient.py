@@ -145,7 +145,7 @@ class WRTClient(object):
                         'project': self.project_url
                     })
                 self.raise_for_status(resp)
-                self._existing_tests[test.id()] = json.loads(resp.text)['url']
+                self._existing_tests[test.id()] = [json.loads(resp.text)['url']]
             # Add a result for each of the tests
             if self.stream:
                 self.stream.writeln('Adding result for %s' % test.id())

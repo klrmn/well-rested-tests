@@ -69,7 +69,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
 
     @property
     def parser(self):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(conflict_handler='resolve')
         parser.prog = self.progName
         parser.print_help = self._print_help
 

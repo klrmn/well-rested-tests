@@ -7,7 +7,8 @@ import unittest2
 
 __all__ = [
     'ReportingTestResourceManager',
-    'ErrorTolerantOptimisedTestSuite'
+    'ErrorTolerantOptimisedTestSuite',
+    'DetailCollector',
 ]
 
 

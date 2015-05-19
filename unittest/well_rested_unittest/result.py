@@ -69,6 +69,10 @@ class WellRestedTestResult(
                             help="print details immediately")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                             help='path to well-rested-tests config file')
+        group.add_argument('--failing-file', dest='failing_file',
+                           default='.failing',
+                           help='path to file used to store failed tests'
+                                '(default .failing)')
         return parser
 
     @staticmethod
@@ -78,6 +82,7 @@ class WellRestedTestResult(
             uxsuccess_not_failure=object.uxsuccess_not_failure or False,
             verbosity=object.verbosity or 1,
             printing=object.printing or 0,
+            failing_file=object.failing_file or '.failing',
             wrt_conf=object.wrt_conf or None)
 
     @staticmethod
@@ -98,7 +103,7 @@ class WellRestedTestResult(
 
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
-                 printing=0, wrt_conf=None):
+                 printing=0, failing_file='.failing', wrt_conf=None):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -128,6 +133,7 @@ class WellRestedTestResult(
         # set the settings
         self.failfast = failfast
         self.uxsuccess_not_failure = uxsuccess_not_failure
+        self.failing_file = failing_file
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.printing = printing
@@ -147,6 +153,8 @@ class WellRestedTestResult(
         if self.wrt_client:
             self.wrt_client.startTestRun(
                 timestamp=self.start_time)
+        self.failing_file = unittest2.runner._WritelnDecorator(
+            open(self.failing_file, 'wb'))
         unittest2.TextTestResult.startTestRun(self)
 
     def stopTestRun(self):
@@ -167,6 +175,7 @@ class WellRestedTestResult(
                 xpasses=len(self.unexpectedSuccesses),
                 xfails=len(self.expectedFailures))
         testtools.TestResult.stopTestRun(self)
+        self.failing_file.close()
         if self.dots or self.showAll:
             self.printErrors()
             self.printSummary()
@@ -335,6 +344,7 @@ class WellRestedTestResult(
 
     def print_or_append(self, test, err, details, list):
         details = self._err_details_to_string(test, err, details)
+        self.failing_file.writeln(test.id())
         if self.printing == EARLY:
             list.append(test)
             self._detail = details
