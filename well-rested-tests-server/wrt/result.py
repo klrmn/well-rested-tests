@@ -61,3 +61,4 @@ class ResultViewSet(viewsets.ModelViewSet):
     queryset = Result.objects.all()
     serializer_class = ResultSerializer
     permission_classes = (permissions.OnlyAdminCanDelete,)
+    filter_fields = ('run', 'case', 'start_time', 'owner', 'status', 'reason')

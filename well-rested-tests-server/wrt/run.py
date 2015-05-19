@@ -65,3 +65,4 @@ class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
     permission_classes = (permissions.OnlyAdminCanDelete,)
+    filter_fields = ('project', 'status')

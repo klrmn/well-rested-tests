@@ -30,6 +30,7 @@ class WRTUserNotFound(WRTException):
 
 class WRTClient(object):
     _project_url = None
+    _project_id = None
     _user_url = None
     _run_url = None
     _existing_tests = {}
@@ -111,6 +112,11 @@ class WRTClient(object):
         return self._project_url
 
     @property
+    def project_id(self):
+        if not self._project_id:
+            self._project_id = int(self.project_url.split('/')[-2])
+
+    @property
     def user_url(self):
         if not self._user_url:
             if self.debug:
@@ -126,14 +132,14 @@ class WRTClient(object):
         return self._user_url
 
     def registerTests(self, tests):
+        params = {'project': self.project_id}
         if self.debug:
-            self.stream.writeln('Registering tests')
-        resp = self.session.get(self.cases_url)
+            self.stream.writeln('Registering tests %s %s' % (self.cases_url, params))
+        resp = self.session.get(self.cases_url, )
         self.raise_for_status(resp)
         # find out what tests exist already in the database
         for test in json.loads(resp.text):
-            if test['project'] == self.project_url:
-                self._existing_tests[test['name']] = [test['url']]
+            self._existing_tests[test['name']] = [test['url']]
         for test in tests:
             # if an incoming test doesn't exist already, add it
             if test.id() not in self._existing_tests:
@@ -188,18 +194,18 @@ class WRTClient(object):
 
     def getPreviousTestRun(self):
         # TODO: filter by matching tags, once tagging works
-        params = {'project': int(self.project_url.split('/')[-2]),}
+        params = {'project': self.project_id,}
         if self.debug:
             self.stream.writeln('%s %s' % (self.runs_url, params))
         resp = self.session.get(self.runs_url, params=params)
         self.raise_for_status(resp)
         runs = [run for run in json.loads(resp.text) if run['status'] != 'inprogress']
         runs = sorted(runs, key=lambda k: k['start_time'], reverse=True)
-        return runs[0]['url']
+        return runs[0]['id']
 
     def failing(self, include_exists=True):
-        previous_run_url = self.getPreviousTestRun()
-        params = {'run': int(previous_run_url.split('/')[-2])}
+        previous_run_id = self.getPreviousTestRun()
+        params = {'run': previous_run_id}
         if self.debug:
             self.stream.writeln('%s %s' % (self.results_url, params))
         resp = self.session.get(self.results_url, params=params)

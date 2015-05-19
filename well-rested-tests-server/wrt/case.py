@@ -34,3 +34,4 @@ class CaseViewSet(viewsets.ModelViewSet):
     queryset = Case.objects.all()
     serializer_class = CaseSerializer
     permission_classes = (permissions.CreateOnly,)
+    filter_fields = ('project',)
