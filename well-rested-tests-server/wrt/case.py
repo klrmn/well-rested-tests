@@ -18,6 +18,25 @@ class Case(models.Model):
     def __str__(self):
         return self.name
 
+    def tests(self):
+        from result import Result
+        return Result.objects.filter(case=self)
+
+    def failed_tests(self):
+        return self.tests.filter(status='fail')
+
+    def passed_tests(self):
+        return self.tests.filter(status='pass')
+
+    def xfailed_tests(self):
+        return self.tests.filter(status='xfail')
+
+    def xpassed_tests(self):
+        return self.tests.filter(status='xpass')
+
+    def skipped_tests(self):
+        return self.tests.filter(status='skip')
+
 class CaseAdmin(admin.ModelAdmin):
     list_display = ('id', 'project', 'name')
 

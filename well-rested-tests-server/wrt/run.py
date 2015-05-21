@@ -35,8 +35,31 @@ class Run(models.Model):
     xfails = models.IntegerField(default=0, blank=True)
     tags = models.ManyToManyField(Tag, blank=True)
 
+    @property
+    def registered(self):
+        return self.tests.count()
+
     def __str__(self):
         return '%s %s (%s)' % (self.project, self.id, self.owner)
+
+    def tests(self):
+        from result import Result
+        return Result.objects.filter(run=self)
+
+    def failed_tests(self):
+        return self.tests.filter(status='fail')
+
+    def passed_tests(self):
+        return self.tests.filter(status='pass')
+
+    def xfailed_tests(self):
+        return self.tests.filter(status='xfail')
+
+    def xpassed_tests(self):
+        return self.tests.filter(status='xpass')
+
+    def skipped_tests(self):
+        return self.tests.filter(status='skip')
 
     def description(self):
         tags = [tag.name for tag in self.tags.all()]
@@ -46,7 +69,7 @@ class Run(models.Model):
 
 class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'start_time', 'end_time', 'duration', 'status', 'description',
-                    'registered_tests', 'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
+                    'registered', 'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
     list_filter = ('project', 'owner', 'status', 'start_time')
 
 
