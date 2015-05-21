@@ -2,6 +2,7 @@ import unittest2
 import os
 import sys
 import wrtclient
+import shutil
 
 __unittest = True
 
@@ -82,6 +83,7 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
                     self.wrt_conf, unittest2.runner._WritelnDecorator(sys.stderr))
                 ids = self.wrt_client.failing()
             else:
+                shutil.copy(self.failing_file, self.failing_file + '.bak')
                 with open(self.failing_file, 'rb') as f:
                     ids = f.read().split()
             return suite.filter_by_ids(ids)
