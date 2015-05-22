@@ -87,6 +87,8 @@ class TestWellRestedTestResult(unittest2.TestCase):
     def test_startTestRun_stopTestRun(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=0, failing_file="")
+            # you'll want this one for debugging
+            # verbosity=2, failing_file="", printing=well_rested_unittest.result.EARLY)
         result.startTestRun()
         self.assertIsNone(result.test_start_time)
         self.assertIsNone(result.test_end_time)
@@ -104,17 +106,26 @@ class TestWellRestedTestResult(unittest2.TestCase):
         result.startTest('test12')
         result.addUnexpectedSuccess('test12', details=self.details)
         result.stopTest('test12')
+        result.startTest('test13')
+        result.addFailure('test13', details=self.details)
+        result.stopTest('test13')
+        result.startTest('test14')
+        result.addSkip('test14', 'blah')
+        result.stopTest('test14')
         result.stopTestRun()
+        result.stream.writeln(str(result.reasons))
         self.assertIsNotNone(result.start_time)
         self.assertIsNotNone(result.end_time)
-        self.assertEqual(len(result.failures), 1)
+        self.assertEqual(len(result.failures), 2)
         self.assertEqual(len(result.expectedFailures), 1)
         self.assertEqual(len(result.unexpectedSuccesses), 1)
+        self.assertEqual(len(result.skipped), 1)
         actual_summary = result.formatSummary()
-        self.assertIn('Ran 4 tests in ', actual_summary)
+        self.assertIn('Ran 6 tests in ', actual_summary)
         self.assertIn('FAILED', actual_summary)
-        self.assertIn(' (failures=1, expected failures=1, unexpected successes=1)',
+        self.assertIn(' (failures=2, skipped=1, expected failures=1, unexpected successes=1)',
                       actual_summary)
+        self.assertIn('(ExampleException=1)', actual_summary)
 
     def test_addWarning(self):
         result = well_rested_unittest.WellRestedTestResult(

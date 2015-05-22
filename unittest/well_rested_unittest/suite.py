@@ -132,6 +132,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     # TODO: implement create-or-fetch of well-rested-tests run
     # TODO: implement reporting test existence to well-rested-tests
     # TODO: --parallel
+    # TODO: notice KeyboardInterupt and replace .failing.bak
     """
     Catch errors thrown by resource creation / destruction,
     fail the affected test, and keep going.

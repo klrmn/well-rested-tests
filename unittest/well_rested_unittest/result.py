@@ -37,6 +37,7 @@ class WellRestedTestResult(
     end_time = None
     test_start_time = None
     test_end_time = None
+    reasons = {}
 
     @staticmethod
     def parserOptions(parser):
@@ -141,12 +142,22 @@ class WellRestedTestResult(
             self.wrt_client = wrtclient.WRTClient(
                 wrt_conf, self.stream, debug=False)
 
-    def _details_to_str(self, details, special=None):
-        if 'reason' in details:
-            return details['reason'].as_text()
-        else:
-            from testtools.testresult.real import _details_to_str
-            _details_to_str(details, special)
+    def _err_details_to_string(self, test, err=None, details=None):
+        """Convert an error in exc_info form or a contents dict to a string."""
+        if err is not None:
+            return testtools.content.TracebackContent(err, test).as_text()
+        from testtools.testresult.real import _details_to_str
+        return _details_to_str(details, special='traceback')
+
+    def _process_reason(self, test, details):
+        reason = None
+        if details and 'reason' in details:
+            reason = details.pop('reason').as_text()
+            if reason not in self.reasons:
+                self.reasons[reason] = 1
+            else:
+                self.reasons[reason] += 1
+        return reason
 
     # run related methods
     def startTestRun(self):
@@ -227,10 +238,11 @@ class WellRestedTestResult(
     def addError(self, test, err=None, details=None):
         if self.wrt_client:
             self.wrt_client.failTest(test, err, details)
+        reason = self._process_reason(test, details)
         if self.showAll:
             self.stream.write("ERROR")
-            if details and 'reason' in details:
-                self.stream.write(' %s ' % details['reason'])
+            if reason:
+                self.stream.write(' %s ' % reason)
         elif self.dots:
             self.stream.write('E')
             self.stream.flush()
@@ -241,10 +253,11 @@ class WellRestedTestResult(
     def addFailure(self, test, err=None, details=None):
         if self.wrt_client:
             self.wrt_client.failTest(test, err, details)
+        reason = self._process_reason(test, details)
         if self.showAll:
             self.stream.write("FAIL")
-            if details and 'reason' in details:
-                self.stream.write(' %s ' % details['reason'].as_text())
+            if reason:
+                self.stream.write(' %s ' % reason)
         elif self.dots:
             self.stream.write('F')
             self.stream.flush()
@@ -253,15 +266,21 @@ class WellRestedTestResult(
             self.stop()
 
     def addSkip(self, test, reason=None, details=None):
+        if reason is None:
+            reason = details.get('reason')
+            if reason is None:
+                reason = 'No reason given'
+            else:
+                reason = reason.as_text()
         if self.wrt_client:
             self.wrt_client.skipTest(test, reason)
         if self.showAll:
-            self.stream.write("skipped %r" % (reason,))
+            self.stream.write("skipped %s" % reason)
         elif self.dots:
             self.stream.write("s")
             self.stream.flush()
-        testtools.TestResult.addSkip(
-            self, test, reason, details)
+        # testtools does it strangely. do it less strangely
+        self.skipped.append((test, reason))
 
     def addSuccess(self, test, details=None):
         if self.wrt_client:
@@ -317,7 +336,12 @@ class WellRestedTestResult(
                 self.stream.write(" ... ")
             self.stream.write("warning")
             if details and 'reason' in details:
-                self.stream.write(' %s ' % details['reason'].as_text())
+                reason = details.pop('reason').as_text()
+                self.stream.write(' %s ' % reason)
+                if reason not in self.reasons:
+                    self.reasons[reason] = 1
+                else:
+                    self.reasons[reason] += 1
         self.print_or_append(fixture, err, details, self.warnings)
 
     def addInfo(self, fixture):
@@ -409,6 +433,9 @@ class WellRestedTestResult(
         if self.unexpectedSuccesses:
             infos.append(
                 "unexpected successes=%d" % len(self.unexpectedSuccesses))
+        if self.reasons:
+            reasons = ['%s=%s' % (k, v) for k, v in self.reasons.items()]
+            summary.append(" (%s)" % (", ".join(reasons)))
         if infos:
             summary.append(" (%s)\n" % (", ".join(infos),))
         return "\n".join(summary)

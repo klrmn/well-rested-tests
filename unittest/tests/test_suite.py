@@ -80,7 +80,6 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertEqual(len(result.warnings), 1, result.warnings)
-        self.assertIn('booga booga', result.warnings[0][1])
         self.assertIn(len(result.infos), (4, 7), result.infos)  # workaround
         self.assertIn(result.fixtures, (5, 8))
 
