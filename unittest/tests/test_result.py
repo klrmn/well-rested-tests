@@ -113,7 +113,6 @@ class TestWellRestedTestResult(unittest2.TestCase):
         result.addSkip('test14', 'blah')
         result.stopTest('test14')
         result.stopTestRun()
-        result.stream.writeln(str(result.reasons))
         self.assertIsNotNone(result.start_time)
         self.assertIsNotNone(result.end_time)
         self.assertEqual(len(result.failures), 2)

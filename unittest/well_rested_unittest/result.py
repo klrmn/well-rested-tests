@@ -33,12 +33,6 @@ class WellRestedTestResult(
     time taken will be printed in HH:MM:SS.sss format.
     """
 
-    start_time = None
-    end_time = None
-    test_start_time = None
-    test_end_time = None
-    reasons = {}
-
     @staticmethod
     def parserOptions(parser):
         group = parser.add_argument_group('WellRestedTestResult')
@@ -128,6 +122,11 @@ class WellRestedTestResult(
         self._tags = testtools.tags.TagContext()
         self.expectedFailures = []
         self.unexpectedSuccesses = []
+        self.reasons = {}
+        self.start_time = None
+        self.end_time = None
+        self.test_start_time = None
+        self.test_end_time = None
         self._detail = ""
         self._test_run = None
         self.wrt_conf = None
