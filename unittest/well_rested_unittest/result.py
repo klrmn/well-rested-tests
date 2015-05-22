@@ -43,31 +43,35 @@ class WellRestedTestResult(
     def parserOptions(parser):
         group = parser.add_argument_group('WellRestedTestResult')
         group.add_argument('-f', '--failfast', dest='failfast',
-                            action='store_true',
-                            help='Stop on first fail or error')
+                           action='store_true',
+                           help='Stop on first fail or error')
         group.add_argument('-x', '--uxsuccess-not-failure',
-                            dest='uxsuccess_not_failure',
-                            action='store_true',
-                            help="Consider unexpected success a failure "
-                                 "(default True).")
+                           dest='uxsuccess_not_failure',
+                           action='store_true',
+                           help="Consider unexpected success a failure "
+                                "(default True).")
+        group.add_argument('-d', '--dots', dest='verbosity',
+                           action='store_const', const=1,
+                           help='print dots (default)')
         group.add_argument('-r', '--reason-only', dest='verbosity',
-                            action='store_const', const=2,
-                            help='Detailed output')
+                           action='store_const', const=2,
+                           help='Output with reasons')
         group.add_argument('-v', '--verbose', dest='verbosity',
-                            action='store_const', const=3,
-                            help='Verbose output')
+                           action='store_const', const=3,
+                           help='Verbose output')
         # quiet is verbosity = -1 rather than zero so that it is truthy
         group.add_argument('-q', '--quiet', dest='verbosity',
-                            action='store_const', const=-1,
-                            help='Silent output')
+                           action='store_const', const=-1,
+                           help='Silent output')
         group.add_argument('-l', '--late-printing', dest='printing',
-                            action='store_const', const=LATE,
-                            help="don't print test starts")
+                           action='store_const', const=LATE,
+                           help="don't print test starts")
         group.add_argument('-e', '--early-printing', dest='printing',
-                            action='store_const', const=EARLY,
-                            help="print details immediately")
+                           action='store_const', const=EARLY,
+                           help="print details immediately, "
+                                "(overrides -q and -d)")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
-                            help='path to well-rested-tests config file')
+                           help='path to well-rested-tests config file')
         group.add_argument('--failing-file', dest='failing_file',
                            default='.failing',
                            help='path to file used to store failed tests'
@@ -91,11 +95,12 @@ class WellRestedTestResult(
   -f, --failfast        Stop on first fail or error
   -x, --uxsuccess-not-failure
                         Consider unexpected success a failure (default True).
-  -r, --reason-only     Detailed output
+  -d, --dots            print dots (default)
+  -r, --reason-only     Output with reasons
   -v, --verbose         Verbose output
   -q, --quiet           Silent output
   -l, --late-printing   don't print test starts
-  -e, --early-printing  print details immediately
+  -e, --early-printing  print details immediately, (overrides -q and -d)
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
@@ -137,6 +142,9 @@ class WellRestedTestResult(
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.printing = printing
+        # EARLY overrides -q and -d
+        if self.printing == EARLY:
+            self.showAll = True
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
