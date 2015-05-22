@@ -70,6 +70,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         self.assertEqual(len(result.warnings), 2, result.warnings)
         self.assertEqual(len(result.infos), 6, result.infos)
+        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.errors), 2)
         self.assertEqual(result.fixtures, 8)
 
     def test_error_in_fixture_teardown(self):
@@ -81,6 +83,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         self.assertEqual(len(result.warnings), 1, result.warnings)
         self.assertIn(len(result.infos), (4, 7), result.infos)  # workaround
+        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.errors), 0)
         self.assertIn(result.fixtures, (5, 8))
 
     def test_no_errors(self):
@@ -92,6 +96,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         self.assertIn(result.fixtures, (6, 9), result.warnings + result.infos)  # workaround
         self.assertFalse(len(result.warnings), result.warnings)
+        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.errors), 0)
         self.assertIn(len(result.infos), (6, 9), result.infos)  # workaround
 
     @unittest2.skipUnless(os.getenv('LONG', None), 'set LONG=True to run')

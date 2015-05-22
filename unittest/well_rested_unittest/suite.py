@@ -191,7 +191,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 # but we still want to report failed for the test itself
                 # so that it will show up in --failing
                 result.startTest(test)
-                result.addFailure(test, details={
+                result.addError(test, details={
                     'reason': testtools.content.text_content(
                         'Error handling fixtures')})
                 result.stopTest(test)
