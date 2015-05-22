@@ -170,8 +170,14 @@ class WellRestedTestResult(
     def startTestRun(self):
         self.start_time = time.time()
         if self.wrt_client:
-            self.wrt_client.startTestRun(
-                timestamp=self.start_time)
+            try:
+                self.wrt_client.startTestRun(
+                    timestamp=self.start_time)
+            except requests.exceptions.ConnectionError as e:
+                self.stream.writeln(
+                    'ERROR: Unable to connect to the well-rested-tests server\n%s'
+                    % e.message)
+                exit(1)
         if self.failing_file and self.failing_file != self.wrt_conf:
             self.failing_file = unittest2.runner._WritelnDecorator(
                 open(self.failing_file, 'wb'))
