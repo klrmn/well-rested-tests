@@ -10,7 +10,6 @@ __unittest = True
 
 
 class FullyConfigurableTestProgram(unittest2.TestProgram):
-    # TODO: args and sys.args, not args or sys.args
     exit = True
     defaultTest = module = None
     catch = False
@@ -66,6 +65,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
             exit(1)
         # find the tests
         self.createTests()
+        self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
 
     @property
     def parser(self):
@@ -84,6 +84,8 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
             parser = self.resultClass.parserOptions(parser)
             parser = self.runnerClass.parserOptions(parser)
             parser = self.loaderClass.parserOptions(parser)
+            if hasattr(self.suiteClass, 'parserOptions'):
+                parser = self.suiteClass.parserOptions(parser)
         except AttributeError as e:
             # hey, it's developer error
             sys.stderr.write(

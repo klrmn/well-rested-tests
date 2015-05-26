@@ -4,7 +4,8 @@ import subprocess
 from well_rested_unittest import FullyConfigurableTestProgram, \
                                  OutputDelegatingTestRunner, \
                                  AutoDiscoveringTestLoader, \
-                                 WellRestedTestResult
+                                 WellRestedTestResult, \
+                                 ErrorTolerantOptimisedTestSuite
 
 
 class NewRunner(OutputDelegatingTestRunner):
@@ -60,9 +61,12 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertEqual(program.testResult.printing, 1)
 
     def test_help(self):
-        program = FullyConfigurableTestProgram(argv=['fctest', 'sample_tests'])
+        program = FullyConfigurableTestProgram(
+            suiteClass=ErrorTolerantOptimisedTestSuite,
+            argv=['fctest', 'sample_tests'])
         help_message = program.parser.format_help()
         # sys.stderr.write(help_message)  # much easier debugging
         self.assertIn(program.testResult.expectedHelpText(program.resultClass), help_message)
         self.assertIn(program.testLoader.expectedHelpText(program.loaderClass), help_message)
         self.assertIn(program.testRunner.expectedHelpText(program.runnerClass), help_message)
+        self.assertIn(program.suiteClass.expectedHelpText(program.suiteClass), help_message)

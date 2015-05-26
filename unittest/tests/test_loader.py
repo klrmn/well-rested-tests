@@ -9,6 +9,7 @@ from sample_tests.subdirectory import test_class
 class NewSuite(unittest2.TestSuite):
     pass
 
+
 class TestAutoDiscoveringTestLoader(unittest2.TestCase):
 
     maxDiff = None

@@ -127,10 +127,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
     # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
-    # TODO: filter on failing (tests run but not passed)
-    # TODO: filter on existing (tests reported but not run)
     # TODO: implement create-or-fetch of well-rested-tests run
-    # TODO: implement reporting test existence to well-rested-tests
     # TODO: --parallel
     # TODO: notice KeyboardInterupt and replace .failing.bak
     """
@@ -143,13 +140,18 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
     @staticmethod
     def parserOptions(parser):
-        # reminder, add sub-heading when adding arguments
-        # group = parser.add_argument_group('ErrorTolerantOptimisedTestSuite')
+        group = parser.add_argument_group('ErrorTolerantOptimisedTestSuite')
+        group.add_argument('--list', dest='list_tests',
+                           action='store_true',
+                           help='Output list of tests, then exist.')
         return parser
 
     @staticmethod
     def expectedHelpText(cls):
-        return ""
+        return """
+%s:
+  --list                Output list of tests, then exist.
+""" % cls.__name__
 
     @staticmethod
     def factory(cls, object):
@@ -173,8 +175,15 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             resource.getResource(result)
             self.current_resources.add(resource)
 
+    def list(self):
+        return [test.id() for test in self._tests]
+
     def run(self, result):
         self.sortTests()
+        if self.list_tests:
+            for test in self.list():
+                result.stream.writeln(test)
+            exit(0)
         if result.wrt_client:
             result.wrt_client.registerTests(self._tests)
         for test in self._tests:

@@ -38,6 +38,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         self.assertEqual(loader.suiteClass, ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(['sample_tests'], None)
+        suite.list_tests = False
         self.assertEqual(
             suite._tests, [
                 sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
@@ -66,6 +67,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass1'], None)
+        suite.list_tests = False
         result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertEqual(len(result.warnings), 2, result.warnings)
@@ -79,6 +81,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass2'], None)
+        suite.list_tests = False
         result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertEqual(len(result.warnings), 1, result.warnings)
@@ -92,6 +95,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
+        suite.list_tests = False
         result = WellRestedTestResult(verbosity=0, failing_file="")
         suite.run(result)
         self.assertIn(result.fixtures, (6, 9), result.warnings + result.infos)  # workaround
@@ -103,3 +107,16 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
     @unittest2.skipUnless(os.getenv('LONG', None), 'set LONG=True to run')
     def test_long_run_time(self):
         time.sleep(350)
+
+    def test_list(self):
+        loader = AutoDiscoveringTestLoader(
+            suiteClass=ErrorTolerantOptimisedTestSuite)
+        suite = loader.loadTestsFromNames(
+            ['sample_tests/subdirectory'], None)
+        suite.list_tests = True
+        result = WellRestedTestResult(verbosity=0, failing_file="")
+        tests = suite.list()
+        self.assertEqual(
+            tests,
+            ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1',
+             'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_2'])
