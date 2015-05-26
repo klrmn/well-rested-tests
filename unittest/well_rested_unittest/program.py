@@ -1,4 +1,5 @@
 import unittest2
+import os
 import sys
 import argparse
 
@@ -8,6 +9,7 @@ from loader import *
 
 __unittest = True
 
+sys.path.append(os.getcwd())
 
 class FullyConfigurableTestProgram(unittest2.TestProgram):
     exit = True
