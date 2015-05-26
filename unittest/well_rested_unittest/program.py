@@ -9,7 +9,10 @@ from loader import *
 
 __unittest = True
 
+# make sure you'll be able to import any test hanging off the current
+# working directory
 sys.path.append(os.getcwd())
+
 
 class FullyConfigurableTestProgram(unittest2.TestProgram):
     exit = True
