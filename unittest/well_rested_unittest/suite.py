@@ -138,6 +138,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     """
 
     current_resources = set()
+    list_tests = False
 
     @staticmethod
     def parserOptions(parser):
