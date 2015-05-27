@@ -13,13 +13,24 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
     * support names that can be a combination of modules and directories
     """
 
-    def __init__(self, suiteClass=unittest2.TestSuite, top_dir=None):
+    def __init__(self, suiteClass=unittest2.TestSuite,
+                 failing=False, failing_file='.failing',
+                 wrt_conf=None, top_dir=None):
         """
         :param suiteClass: TestSuite instance (defaults to unittest2.TestSuite)
+        :param failing: load previously failed tests
+        :param failing_file: file containing previously failed tests
+                             (defaults to .failing)
+        :param wrt_conf: file containing well-rested-tests configuration
+        :param top_dir: (defaults to None)
         :return:
         """
         super(AutoDiscoveringTestLoader, self).__init__()
         self.suiteClass = suiteClass
+        self.resourcedSuiteClass = resourcedSuiteClass or ResourcedTestSuite
+        self.failing = failing
+        self.failing_file = failing_file
+        self.wrt_conf = wrt_conf
         self.top_dir = top_dir
 
     @staticmethod
@@ -55,15 +66,6 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
             failing_file=object.failing_file or '.failing',
             wrt_conf=object.wrt_conf or None,
         )
-
-    def __init__(self, suiteClass=unittest2.TestSuite,
-                 failing=False, failing_file='.failing',
-                 wrt_conf=None):
-        super(AutoDiscoveringTestLoader, self).__init__()
-        self.suiteClass = suiteClass
-        self.failing = failing
-        self.failing_file = failing_file
-        self.wrt_conf = wrt_conf
 
     def loadTestsFromNames(self, names, module=None):
         """Return a suite of all tests cases found using the given sequence
