@@ -9,6 +9,7 @@ import wrtclient
 
 __unittest = True
 
+STANDARD = 0
 EARLY = -1
 LATE = 1
 
@@ -59,11 +60,14 @@ class WellRestedTestResult(
                            help='Silent output')
         group.add_argument('-l', '--late-printing', dest='printing',
                            action='store_const', const=LATE,
-                           help="don't print test starts")
+                           help="Don't print test starts")
         group.add_argument('-e', '--early-printing', dest='printing',
                            action='store_const', const=EARLY,
-                           help="print details immediately, "
+                           help="Print details immediately, "
                                 "(overrides -q and -d)")
+        group.add_argument('-s', '--standard-printing', dest='printing',
+                           action='store_const', const=STANDARD,
+                           help='Standard print timing (default).')
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                            help='path to well-rested-tests config file')
         group.add_argument('--failing-file', dest='failing_file',
@@ -93,15 +97,17 @@ class WellRestedTestResult(
   -r, --reason-only     Output with reasons
   -v, --verbose         Verbose output
   -q, --quiet           Silent output
-  -l, --late-printing   don't print test starts
-  -e, --early-printing  print details immediately, (overrides -q and -d)
+  -l, --late-printing   Don't print test starts
+  -e, --early-printing  Print details immediately, (overrides -q and -d)
+  -s, --standard-printing
+                        Standard print timing (default).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
 
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
-                 printing=0, failing_file='.failing', wrt_conf=None):
+                 printing=STANDARD, failing_file='.failing', wrt_conf=None):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -355,6 +361,9 @@ class WellRestedTestResult(
                     self.reasons[reason] = 1
                 else:
                     self.reasons[reason] += 1
+        elif self.dots:
+            self.stream.write('w')
+            self.stream.flush()
         self.print_or_append(fixture, err, details, self.warnings)
 
     def addInfo(self, fixture):
@@ -367,6 +376,9 @@ class WellRestedTestResult(
                 self.stream.write(str(fixture))
                 self.stream.write(" ... ")
             self.stream.write("ok")
+        elif self.dots:
+            self.stream.write(',')
+            self.stream.flush()
         self.infos.append(fixture)
 
     # summarizing methods
