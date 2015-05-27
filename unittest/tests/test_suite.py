@@ -135,6 +135,13 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
                     sample_tests.test_class.TestClass1(methodName='test_2'),
                 ]),
             ])
+        result = WellRestedTestResult(verbosity=0, failing_file="")
+        suite.run(result)
+        self.assertEqual(len(result.warnings), 2, result.warnings)
+        self.assertEqual(len(result.infos), 18, result.infos)
+        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.errors), 2)
+        self.assertEqual(result.fixtures, 20)
 
     def test_parallel_4_concurrency(self):
         loader = AutoDiscoveringTestLoader(
@@ -161,3 +168,10 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
                 ErrorTolerantOptimisedTestSuite([
                 ]),
             ])
+        result = WellRestedTestResult(verbosity=0, failing_file="")
+        suite.run(result)
+        self.assertEqual(len(result.warnings), 2, result.warnings)
+        self.assertEqual(len(result.infos), 18, result.infos)
+        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.errors), 2)
+        self.assertEqual(result.fixtures, 20)
