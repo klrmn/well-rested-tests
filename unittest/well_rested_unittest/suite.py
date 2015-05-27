@@ -125,7 +125,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
-    # TODO: --reverse
+    # TODO: implement --parallel and --concurrency
     # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
     # TODO: implement create-or-fetch of well-rested-tests run
@@ -139,6 +139,8 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
     current_resources = set()
     list_tests = False
+    parallel = False
+    concurrency = 2
 
     @staticmethod
     def parserOptions(parser):
@@ -152,6 +154,11 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         group.add_argument('--debug', dest='debug',
                            action='store_true',
                            help='Debug the suite functionality.')
+        group.add_argument('--parallel', dest='parallel',
+                           action='store_true',
+                           help='Run tests in parallel (up to --concurrency threads).')
+        group.add_argument('--concurrency', dest='concurrency', default=2,
+                           help='Number of parallel threads (default 2).')
         return parser
 
     @staticmethod
@@ -161,6 +168,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
   --list                Output list of tests, then exist.
   --reverse             Reverse order of tests.
   --debug               Debug the suite functionality.
+  --parallel            Run tests in parallel (up to --concurrency threads).
+  --concurrency CONCURRENCY
+                        Number of parallel threads (default 2).
 """ % cls.__name__
 
     @staticmethod
