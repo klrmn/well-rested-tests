@@ -151,6 +151,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
     current_resources = set()
     list_tests = False
+    debug = False
     parallel = False
     concurrency = 2
 
