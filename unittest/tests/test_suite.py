@@ -109,9 +109,55 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        result = WellRestedTestResult(verbosity=0, failing_file="")
         tests = suite.list()
         self.assertEqual(
             tests,
             ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1',
              'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_2'])
+
+    def test_parallel_default_concurrency(self):
+        loader = AutoDiscoveringTestLoader(
+            suiteClass=ErrorTolerantOptimisedTestSuite)
+        self.assertEqual(loader.suiteClass, ErrorTolerantOptimisedTestSuite)
+        suite = loader.loadTestsFromNames(['sample_tests'], None)
+        suite.parallel = True
+        suite.sortTests()
+        self.assertEqual(
+            suite._tests, [
+                ErrorTolerantOptimisedTestSuite([
+                    sample_tests.test_class.TestClass2(methodName='test_1'),
+                    sample_tests.test_class.TestClass2(methodName='test_2'),
+                    sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
+                    sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
+                ]),
+                ErrorTolerantOptimisedTestSuite([
+                    sample_tests.test_class.TestClass1(methodName='test_1'),
+                    sample_tests.test_class.TestClass1(methodName='test_2'),
+                ]),
+            ])
+
+    def test_parallel_4_concurrency(self):
+        loader = AutoDiscoveringTestLoader(
+            suiteClass=ErrorTolerantOptimisedTestSuite)
+        self.assertEqual(loader.suiteClass, ErrorTolerantOptimisedTestSuite)
+        suite = loader.loadTestsFromNames(['sample_tests'], None)
+        suite.parallel = True
+        suite.concurrency = 4
+        suite.sortTests()
+        self.assertEqual(
+            suite._tests, [
+                ErrorTolerantOptimisedTestSuite([
+                    sample_tests.test_class.TestClass2(methodName='test_1'),
+                    sample_tests.test_class.TestClass2(methodName='test_2'),
+                ]),
+                ErrorTolerantOptimisedTestSuite([
+                    sample_tests.test_class.TestClass1(methodName='test_1'),
+                    sample_tests.test_class.TestClass1(methodName='test_2'),
+                ]),
+                ErrorTolerantOptimisedTestSuite([
+                    sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
+                    sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
+                ]),
+                ErrorTolerantOptimisedTestSuite([
+                ]),
+            ])

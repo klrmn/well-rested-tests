@@ -27,7 +27,6 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         """
         super(AutoDiscoveringTestLoader, self).__init__()
         self.suiteClass = suiteClass
-        self.resourcedSuiteClass = resourcedSuiteClass or ResourcedTestSuite
         self.failing = failing
         self.failing_file = failing_file
         self.wrt_conf = wrt_conf

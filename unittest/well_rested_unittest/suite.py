@@ -3,6 +3,7 @@ import testresources
 import testtools
 import fixtures
 import unittest2
+import itertools
 
 
 __all__ = [
@@ -10,6 +11,17 @@ __all__ = [
     'ErrorTolerantOptimisedTestSuite',
     'DetailCollector',
 ]
+
+
+class RoundRobinList(list):
+
+    def __init__(self, num):
+        for i in range(num):
+            self.append([])
+        self._iter = itertools.cycle(self)
+
+    def extend(self, list):
+        self._iter.next().extend(list)
 
 
 class DetailCollector():
@@ -182,6 +194,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         self.list_tests = False
         self.debug = False
         self.reverse = False
+        self.worker = worker
+        for test in self._tests:
+            test.worker = worker
 
     def switch(self, new_resource_set, result):
         """Switch from self.current_resources to 'new_resource_set'.
@@ -266,6 +281,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 unittest2.TestSuite.addTest(
                     self, test_case_or_suite.__class__([test]))
 
+    def extend(self, tests):
+        self._tests.extend(tests)
+
     def filter_by_ids(suite, test_ids):
         """
         Used by loader when --failing is set.
@@ -278,3 +296,57 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 filtered.append(test)
         suite._tests = filtered
         return suite
+
+    def sortTests(self):
+        """Attempt to topographically sort the contained tests.
+
+        This function biases to reusing a resource: it assumes that resetting
+        a resource is usually cheaper than a teardown + setup; and that most
+        resources are not dirtied by most tests.
+
+        Feel free to override to improve the sort behaviour.
+        """
+        # We group the tests by the resource combinations they use,
+        # since there will usually be fewer resource combinations than
+        # actual tests and there can never be more: This gives us 'nodes' or
+        # 'resource_sets' that represent many tests using the same set of
+        # resources.
+        resource_set_tests = testresources.split_by_resources(self._tests)
+        # Partition into separate sets of resources, there is no ordering
+        # preference between sets that do not share members. Rationale:
+        # If resource_set A and B have no common resources, AB and BA are
+        # equally good - the global setup/teardown sums are identical. Secondly
+        # if A shares one or more resources with C, then pairing AC|CA is
+        # better than having B between A and C, because the shared resources
+        # can be reset or reused. Having partitioned we can use connected graph
+        # logic on each partition.
+        resource_set_graph = testresources._resource_graph(resource_set_tests)
+        no_resources = frozenset()
+        # A list of resource_set_tests, all fully internally connected.
+        partitions = testresources._strongly_connected_components(
+            resource_set_graph, no_resources)
+
+        if self.parallel:
+            result = RoundRobinList(self.concurrency)
+        else:
+            result = []
+
+        for partition in partitions:
+            # we process these at the end for no particularly good reason (it
+            # makes testing slightly easier).
+            if partition == [no_resources]:
+                continue
+            order = self._makeOrder(partition)
+            # Spit this partition out into result
+            for resource_set in order:
+                result.extend(resource_set_tests[resource_set])
+        result.extend(resource_set_tests[no_resources])
+
+        if self.parallel:
+            self._tests = []
+            for i, batch in enumerate(result):
+                suite = self.__class__([], worker=i+1)
+                suite.extend(batch)
+                self._tests.append(suite)
+        else:
+            self._tests = result
