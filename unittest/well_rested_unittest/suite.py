@@ -144,6 +144,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         group.add_argument('--list', dest='list_tests',
                            action='store_true',
                            help='Output list of tests, then exist.')
+        group.add_argument('--debug', dest='debug',
+                           action='store_true',
+                           help='Debug the suite functionality.')
         return parser
 
     @staticmethod
@@ -151,6 +154,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         return """
 %s:
   --list                Output list of tests, then exist.
+  --debug               Debug the suite functionality.
 """ % cls.__name__
 
     @staticmethod
@@ -195,7 +199,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 new_resources.update(resource.neededResources())
             try:
                 self.switch(new_resources, result)
-            except Exception:
+            except Exception as e:
+                if self.debug:
+                    result.stream.writeln(str(e))
                 # the exception has been reported on the fixture,
                 # but we still want to report failed for the test itself
                 # so that it will show up in --failing

@@ -71,6 +71,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
         # find the tests
         self.createTests()
         self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
+        self.test.debug = self.debug if hasattr(self, 'debug') else False
 
     @property
     def parser(self):
