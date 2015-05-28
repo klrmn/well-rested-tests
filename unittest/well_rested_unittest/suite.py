@@ -138,6 +138,8 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
     # TODO: implement --parallel and --concurrency
+    # TODO:   resources are shared / not shared while --parallel
+    # TODO:   fixture (resource) per worker
     # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
     # TODO: implement create-or-fetch of well-rested-tests run
@@ -346,7 +348,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         if self.parallel:
             self._tests = []
             for i, batch in enumerate(result):
-                suite = self.__class__([], worker=i+1)
+                for j, test in enumerate(batch):
+                    batch[j].worker = i + 1
+                suite = ErrorTolerantOptimisedTestSuite([], worker=i + 1)
                 suite.extend(batch)
                 self._tests.append(suite)
         else:

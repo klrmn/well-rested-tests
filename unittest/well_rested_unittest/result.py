@@ -220,7 +220,11 @@ class WellRestedTestResult(
     # test related methods
     def getDescription(self, test):
         """Let's not use docstrings as test names"""
-        return str(test)
+        output = ''
+        if hasattr(test, 'worker') and test.worker:
+            output = output + '(%s) ' % test.worker
+        output = output + str(test)
+        return output
 
     def startTest(self, test):
         self.test_start_time[test] = time.time()
@@ -355,7 +359,6 @@ class WellRestedTestResult(
         reason = None
         if details and 'reason' in details:
             reason = details.pop('reason').as_text()
-            self.stream.write(' %s ' % reason)
             if reason not in self.reasons:
                 self.reasons[reason] = 1
             else:
