@@ -4,6 +4,7 @@ import testtools
 import fixtures
 import unittest2
 import itertools
+import traceback
 
 
 __all__ = [
@@ -241,9 +242,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 new_resources.update(resource.neededResources())
             try:
                 self.switch(new_resources, result)
-            except Exception as e:
+            except Exception:
                 if self.debug:
-                    result.stream.writeln(str(e))
+                    result.stream.writeln(traceback.format_exc())
                 # the exception has been reported on the fixture,
                 # but we still want to report failed for the test itself
                 # so that it will show up in --failing
