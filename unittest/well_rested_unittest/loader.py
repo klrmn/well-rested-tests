@@ -60,10 +60,10 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
     @staticmethod
     def factory(cls, object):
         return cls(
-            suiteClass=object.suiteClass or unittest2.TestSuite,
-            failing=object.failing or False,
-            failing_file=object.failing_file or '.failing',
-            wrt_conf=object.wrt_conf or None,
+            suiteClass=object.suiteClass,  # always exists
+            failing=object.failing if hasattr(object, 'failing') else False,
+            failing_file=object.failing_file if hasattr(object, 'failing_file') else '.failing',
+            wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
         )
 
     def loadTestsFromNames(self, names, module=None):

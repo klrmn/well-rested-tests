@@ -70,13 +70,16 @@ class WellRestedTestResult(
     @staticmethod
     def factory(cls, object):
         return cls(
-            failfast=object.failfast or False,
-            uxsuccess_not_failure=object.uxsuccess_not_failure or False,
-            verbosity=object.verbosity or 1,
-            early_details=object.early_details or False,
-            failing_file=object.failing_file or '.failing',
-            parallel=object.parallel or False,
-            wrt_conf=object.wrt_conf or None)
+            failfast=object.failfast if hasattr(object, 'failfast') else False,
+            uxsuccess_not_failure=object.uxsuccess_not_failure if
+                hasattr(object, 'uxsuccess_not_failure') else False,
+            verbosity=object.verbosity if hasattr(object, 'verbosity') else 1,
+            early_details=object.early_details if
+                hasattr(object, 'early_details') else False,
+            failing_file=object.failing_file if
+                hasattr(object, 'failing_file') else '.failing',
+            parallel=object.parallel if hasattr(object, 'parallel') else False,
+            wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None)
 
     @staticmethod
     def expectedHelpText(cls):
