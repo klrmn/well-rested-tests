@@ -176,7 +176,8 @@ class WellRestedTestResult(
 
     # run related methods
     def startTestRun(self):
-        self.stream.writeln(self.separator2)
+        if self.showAll:
+            self.stream.writeln(self.separator2)
         self.start_time = time.time()
         if self.wrt_client:
             try:

@@ -70,19 +70,43 @@ class TestWellRestedTestResult(unittest2.TestCase):
     def test_output_verbose(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=3)
-        self.assertEqual(result.showAll, True)
-        self.assertEqual(result.dots, False)
+        self.assertTrue(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertFalse(result.early_details)
 
     def test_output_default(self):
         result = well_rested_unittest.WellRestedTestResult()
-        self.assertEqual(result.showAll, False)
-        self.assertEqual(result.dots, True)
+        self.assertFalse(result.showAll)
+        self.assertTrue(result.dots)
+        self.assertFalse(result.early_details)
 
     def test_output_quiet(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=0)
-        self.assertEqual(result.showAll, False)
-        self.assertEqual(result.dots, False)
+        self.assertFalse(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertFalse(result.early_details)
+
+    def test_output_early_details(self):
+        result = well_rested_unittest.WellRestedTestResult(
+            verbosity=0, early_details=True)
+        self.assertTrue(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertTrue(result.early_details)
+
+    def test_output_parallel(self):
+        result = well_rested_unittest.WellRestedTestResult(
+            verbosity=2, early_details=True, parallel=True)
+        self.assertFalse(result.showAll)
+        self.assertTrue(result.dots)
+        self.assertFalse(result.early_details)
+
+    def test_output_quiet_parallel(self):
+        result = well_rested_unittest.WellRestedTestResult(
+            verbosity=0, parallel=True)
+        self.assertFalse(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertFalse(result.early_details)
 
     def test_startTestRun_stopTestRun(self):
         result = well_rested_unittest.WellRestedTestResult(
@@ -90,13 +114,13 @@ class TestWellRestedTestResult(unittest2.TestCase):
             # you'll want this one for debugging
             # verbosity=2, failing_file="", printing=well_rested_unittest.result.EARLY)
         result.startTestRun()
-        self.assertIsNone(result.test_start_time)
-        self.assertIsNone(result.test_end_time)
+        self.assertEqual(result.test_start_time, {})
+        self.assertEqual(result.test_end_time, {})
         result.startTest('test9')
         result.addFailure('test9', err=self.err)
         result.stopTest('test9')
-        self.assertIsNotNone(result.test_start_time)
-        self.assertIsNotNone(result.test_end_time)
+        self.assertTrue(result.test_start_time['test9'])
+        self.assertTrue(result.test_end_time['test9'])
         result.startTest('test10')
         result.addSuccess('test10', details=self.details)
         result.stopTest('test10')

@@ -29,3 +29,9 @@ def otest():
         suiteClass=suite.ErrorTolerantOptimisedTestSuite,
         entry_settings={'verbosity': 2, 'early_details': True}
     ).runTests()
+
+
+def testotest():
+    FullyConfigurableTestProgram(
+        suiteClass=suite.ErrorTolerantOptimisedTestSuite,
+    ).runTests()

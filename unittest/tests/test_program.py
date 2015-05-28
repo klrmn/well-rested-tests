@@ -39,7 +39,7 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertTrue(program.testResult.dots)
         self.assertFalse(program.testResult.showAll)
         self.assertFalse(program.testResult.failfast)
-        self.assertFalse(program.testResult.printing)
+        self.assertFalse(program.testResult.early_details)
         self.assertIsNone(program.testResult.wrt_client)
 
     def test_specific_classes_with_argv(self):
@@ -48,7 +48,7 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
             loaderClass=NewLoader,
             runnerClass=NewRunner,
             resultClass=NewResult,
-            argv=['fctest', '-q', '-l', '--failfast', 'sample_tests'])
+            argv=['fctest', '-q', '--failfast', 'sample_tests'])
         self.assertEqual(program.suiteClass, NewSuite)
         self.assertTrue(isinstance(program.testLoader, NewLoader))
         self.assertTrue(isinstance(program.testRunner, NewRunner))
@@ -58,7 +58,6 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertFalse(program.testResult.dots)
         self.assertFalse(program.testResult.showAll)
         self.assertTrue(program.testResult.failfast)
-        self.assertEqual(program.testResult.printing, 1)
 
     def test_help(self):
         program = FullyConfigurableTestProgram(
