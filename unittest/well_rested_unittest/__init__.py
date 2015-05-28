@@ -27,5 +27,5 @@ def wrt():
 def otest():
     FullyConfigurableTestProgram(
         suiteClass=suite.ErrorTolerantOptimisedTestSuite,
-        entry_settings={'verbosity': 2, 'printing': EARLY}
+        entry_settings={'verbosity': 2, 'early_details': True}
     ).runTests()
