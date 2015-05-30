@@ -129,3 +129,15 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
             sample_tests.test_class.TestClass1(methodName='test_2'),
         ])
 
+    def test_failing(self):
+        loader = AutoDiscoveringTestLoader(failing=True)
+        self.assertEqual(loader.from_file, '.failing')
+
+    def test_from_file(self):
+        loader = AutoDiscoveringTestLoader(from_file='sample_tests/load_2_tests.txt')
+        suite = loader.loadTestsFromNames(['sample_tests'], None)
+        self.assertEqual(
+            suite._tests, [
+                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
+                sample_tests.test_class.TestClass(methodName='test_2'),
+            ])

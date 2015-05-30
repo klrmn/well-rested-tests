@@ -193,7 +193,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     def factory(cls, object):
         return cls()
 
-    def __init__(self, tests):
+    def __init__(self, tests, worker=None):
         super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
         self.list_tests = False
         self.debug = False

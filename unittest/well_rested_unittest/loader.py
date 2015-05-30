@@ -14,7 +14,7 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
     """
 
     def __init__(self, suiteClass=unittest2.TestSuite,
-                 failing=False, failing_file='.failing',
+                 failing=False, from_server=None, from_file=None,
                  wrt_conf=None, top_dir=None):
         """
         :param suiteClass: TestSuite instance (defaults to unittest2.TestSuite)
@@ -28,7 +28,11 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         super(AutoDiscoveringTestLoader, self).__init__()
         self.suiteClass = suiteClass
         self.failing = failing
-        self.failing_file = failing_file
+        self.from_file = from_file
+        if self.failing:
+            self.from_file = '.failing'
+            shutil.copy(self.from_file, self.from_file + '.bak')
+        self.from_server = from_server
         self.wrt_conf = wrt_conf
         self.top_dir = top_dir
 
@@ -39,11 +43,12 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         group.add_argument('--failing', dest='failing',
                             action='store_true',
                             help='Run tests previously marked as fail or error')
-        group.add_argument('--failing-file', dest='failing_file',
-                           default='.failing',
-                           help='path to file used to store failed tests '
-                                '(default .failing). if set to the same path '
-                                'as --wrt-conf, get failed tests from wrt server.')
+        group.add_argument('--failing-from-server', dest='from_server',
+                           action='store_true',
+                           help='Run failed tests from well-rested-tests server.')
+        group.add_argument('--from-file', dest='from_file',
+                           help='Path to file listing tests to be run, '
+                                'one to a line.')
         return parser
 
     @staticmethod
@@ -51,10 +56,10 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         return """
 %s:
   --failing             Run tests previously marked as fail or error
-  --failing-file FAILING_FILE
-                        path to file used to store failed tests (default
-                        .failing). if set to the same path as --wrt-conf, get
-                        failed tests from wrt server.
+  --failing-from-server
+                        Run failed tests from well-rested-tests server.
+  --from-file FROM_FILE
+                        Path to file listing tests to be run, one to a line.
 """ % cls.__name__
 
     @staticmethod
@@ -62,7 +67,8 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
         return cls(
             suiteClass=object.suiteClass,  # always exists
             failing=object.failing if hasattr(object, 'failing') else False,
-            failing_file=object.failing_file if hasattr(object, 'failing_file') else '.failing',
+            from_server=object.from_server if hasattr(object, 'from_server') else False,
+            from_file=object.from_file if hasattr(object, 'from_file') else None,
             wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
         )
 
@@ -78,14 +84,15 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
             else:
                 suites.extend(self.loadTestsFromName(name, module))
         suite = self.suiteClass(suites)
-        if self.failing and hasattr(suite, 'filter_by_ids'):
-            if self.failing_file == self.wrt_conf:
+        if hasattr(suite, 'filter_by_ids'):
+            ids = []
+            if self.from_server:
                 self.wrt_client = wrtclient.WRTClient(
                     self.wrt_conf, unittest2.runner._WritelnDecorator(sys.stderr))
                 ids = self.wrt_client.failing()
-            else:
-                shutil.copy(self.failing_file, self.failing_file + '.bak')
-                with open(self.failing_file, 'rb') as f:
+            elif self.from_file:
+                with open(self.from_file, 'rb') as f:
                     ids = f.read().split()
-            return suite.filter_by_ids(ids)
+            if ids:
+                return suite.filter_by_ids(ids)
         return suite

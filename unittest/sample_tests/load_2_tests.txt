@@ -1,0 +1,2 @@
+sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1
+sample_tests.test_class.TestClass.test_2
