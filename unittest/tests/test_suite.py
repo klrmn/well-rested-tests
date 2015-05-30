@@ -113,7 +113,6 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        suite.list_tests = True
         result = WellRestedTestResult(verbosity=0, failing_file="")
         tests = suite.list()
         self.assertEqual(

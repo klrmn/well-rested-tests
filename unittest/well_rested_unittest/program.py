@@ -70,8 +70,10 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
             exit(1)
         # find the tests
         self.createTests()
+        # set flags on the suite
         self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
         self.test.debug = self.debug if hasattr(self, 'debug') else False
+        self.test.reverse = self.reverse if hasattr(self, 'reverse') else False
 
     @property
     def parser(self):

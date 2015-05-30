@@ -125,6 +125,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
+    # TODO: --reverse
     # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
     # TODO: implement create-or-fetch of well-rested-tests run
@@ -144,6 +145,9 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         group.add_argument('--list', dest='list_tests',
                            action='store_true',
                            help='Output list of tests, then exist.')
+        group.add_argument('--reverse', dest='reverse',
+                           action='store_true',
+                           help='Reverse order of tests.')
         group.add_argument('--debug', dest='debug',
                            action='store_true',
                            help='Debug the suite functionality.')
@@ -154,12 +158,19 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         return """
 %s:
   --list                Output list of tests, then exist.
+  --reverse             Reverse order of tests.
   --debug               Debug the suite functionality.
 """ % cls.__name__
 
     @staticmethod
     def factory(cls, object):
         return cls()
+
+    def __init__(self, tests):
+        super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
+        self.list_tests = False
+        self.debug = False
+        self.reverse = False
 
     def switch(self, new_resource_set, result):
         """Switch from self.current_resources to 'new_resource_set'.
@@ -184,6 +195,8 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
     def run(self, result):
         self.sortTests()
+        if self.reverse:  # TODO: move this to sortTests()
+            self._tests.reverse()
         if self.list_tests:
             for test in self.list():
                 result.stream.writeln(test)

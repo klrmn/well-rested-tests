@@ -65,4 +65,4 @@ well-rested-tests-server/django-vagrant-chef/
 unittest/.wrt.conf
 
 # result files
-unittest/.failing
+unittest/.failing*
