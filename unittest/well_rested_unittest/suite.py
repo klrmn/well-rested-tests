@@ -5,6 +5,10 @@ import fixtures
 import unittest2
 import itertools
 import traceback
+import os
+import sys
+from threading import Thread
+import subprocess
 
 
 __all__ = [
@@ -69,6 +73,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         self.log_level = level
         self.logger = logging.getLogger(self.__class__.__name__)
         self.appendix = ''
+        self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def __str__(self):
         return self.appendix + ' ' + self.__class__.__name__
@@ -137,10 +142,46 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
                 mgr.finishedWith(res, result)
 
 
+class ParallelSuite(unittest2.TestSuite):
+
+    def __init__(self, tests, worker, debug=False):
+        self._tests = tests
+        from loader import AutoDiscoveringTestLoader
+        self.worker = worker
+        self.debug = debug
+
+    def run(self, result):
+        if not self._tests:
+            return result
+
+        # build command -
+        # don't pipe stderr to stdout, or the dots won't be visible in real-time
+        command = [
+            'WRT_WORKER_ID=%s' % self.worker,
+            result.progName,
+        ]
+        if result.dots:
+            command.append('--dots')
+        elif result.showAll:
+            command.append('-v')
+        else:
+            command.append('-q')
+        command.append(' '.join(self._tests))
+        command = ' '.join(command)
+        if self.debug:
+            result.stream.writeln(command)
+
+        try:
+            # output will contain dumped json of the worker's results
+            output = subprocess.check_output(command, shell=True)
+        except subprocess.CalledProcessError as e:
+            output = e.output
+        if self.debug:
+            result.stream.writeln(output)
+        result.absorbResult(output)
+
+
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
-    # TODO: implement --parallel and --concurrency
-    # TODO:   resources are shared / not shared while --parallel
-    # TODO:   fixture (resource) per worker
     # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
     # TODO: implement create-or-fetch of well-rested-tests run
@@ -193,14 +234,12 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     def factory(cls, object):
         return cls()
 
-    def __init__(self, tests, worker=None):
+    def __init__(self, tests):
         super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
         self.list_tests = False
         self.debug = False
         self.reverse = False
-        self.worker = worker
-        for test in self._tests:
-            test.worker = worker
+        self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def switch(self, new_resource_set, result):
         """Switch from self.current_resources to 'new_resource_set'.
@@ -224,42 +263,50 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         return [test.id() for test in self._tests]
 
     def run(self, result):
-        self.sortTests()
-        if self.reverse:  # TODO: move this to sortTests()
+        self.sortTests()  # will sub-divide for parallelization and list if parallel
+        if self.reverse:
             self._tests.reverse()
         if self.list_tests:
             for test in self.list():
                 result.stream.writeln(test)
             exit(0)
-        if result.wrt_client:
-            result.wrt_client.registerTests(self._tests)
-        for test in self._tests:
-            if result.shouldStop:
-                break
-            resources = getattr(test, 'resources', [])
-            new_resources = set()
-            for name, resource in resources:
-                new_resources.update(resource.neededResources())
+        elif self.parallel:
+            threads = [Thread(
+                target=suite.run,
+                args=(result,))
+                for suite in self._tests]
+            map(lambda t: t.start(), threads)
+            map(lambda t: t.join(), threads)
+        else:
+            if result.wrt_client:
+                result.wrt_client.registerTests(self._tests)
+            for test in self._tests:
+                if result.shouldStop:
+                    break
+                resources = getattr(test, 'resources', [])
+                new_resources = set()
+                for name, resource in resources:
+                    new_resources.update(resource.neededResources())
+                try:
+                    self.switch(new_resources, result)
+                except Exception:
+                    if self.debug:
+                        result.stream.writeln(traceback.format_exc())
+                    # the exception has been reported on the fixture,
+                    # but we still want to report failed for the test itself
+                    # so that it will show up in --failing
+                    result.startTest(test)
+                    result.addError(test, details={
+                        'reason': testtools.content.text_content(
+                            'Error handling fixtures')})
+                    result.stopTest(test)
+                    continue  # next test
+                test(result)
             try:
-                self.switch(new_resources, result)
+                self.switch(set(), result)
             except Exception:
-                if self.debug:
-                    result.stream.writeln(traceback.format_exc())
-                # the exception has been reported on the fixture,
-                # but we still want to report failed for the test itself
-                # so that it will show up in --failing
-                result.startTest(test)
-                result.addError(test, details={
-                    'reason': testtools.content.text_content(
-                        'Error handling fixtures')})
-                result.stopTest(test)
-                continue
-            test(result)
-        try:
-            self.switch(set(), result)
-        except Exception:
-            # this exception has already been reported, ignore it.
-            pass
+                # this exception has already been reported, ignore it.
+                pass
         return result
 
     def addTest(self, test_case_or_suite):
@@ -284,9 +331,6 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             for test in tests:
                 unittest2.TestSuite.addTest(
                     self, test_case_or_suite.__class__([test]))
-
-    def extend(self, tests):
-        self._tests.extend(tests)
 
     def filter_by_ids(suite, test_ids):
         """
@@ -347,12 +391,20 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         result.extend(resource_set_tests[no_resources])
 
         if self.parallel:
+            # sys.stderr.write('%s\n\n' % self._tests)
             self._tests = []
-            for i, batch in enumerate(result):
-                for j, test in enumerate(batch):
-                    batch[j].worker = i + 1
-                suite = ErrorTolerantOptimisedTestSuite([], worker=i + 1)
-                suite.extend(batch)
-                self._tests.append(suite)
+            for worker, batch in enumerate(result):
+                worker += 1
+                if self.reverse:
+                    batch.reverse()
+                tests = [test.id() for test in batch]
+                if self.list_tests:
+                    sys.stderr.write('WORKER %s:\n' % worker)
+                    sys.stderr.write('    ')
+                    sys.stderr.write('\n    '.join(tests))
+                    sys.stderr.write('\n')
+                self._tests.append(ParallelSuite(tests, worker, debug=self.debug))
+            if self.list_tests:
+                exit(0)
         else:
             self._tests = result

@@ -16,7 +16,6 @@ def main():
 
 def wrt():
     FullyConfigurableTestProgram(
-        suiteClass=suite.ErrorTolerantOptimisedTestSuite,
         entry_settings={
             'verbosity': 2,
             'wrt_conf': '.wrt.conf',
@@ -26,12 +25,5 @@ def wrt():
 
 def otest():
     FullyConfigurableTestProgram(
-        suiteClass=suite.ErrorTolerantOptimisedTestSuite,
         entry_settings={'verbosity': 2, 'early_details': True}
-    ).runTests()
-
-
-def testotest():
-    FullyConfigurableTestProgram(
-        suiteClass=suite.ErrorTolerantOptimisedTestSuite,
     ).runTests()

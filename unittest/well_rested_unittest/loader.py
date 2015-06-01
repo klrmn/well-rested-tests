@@ -3,6 +3,7 @@ import os
 import sys
 import wrtclient
 import shutil
+from suite import ErrorTolerantOptimisedTestSuite
 
 __unittest = True
 
@@ -13,7 +14,7 @@ class AutoDiscoveringTestLoader(unittest2.TestLoader):
     * support names that can be a combination of modules and directories
     """
 
-    def __init__(self, suiteClass=unittest2.TestSuite,
+    def __init__(self, suiteClass=ErrorTolerantOptimisedTestSuite,
                  failing=False, from_server=None, from_file=None,
                  wrt_conf=None, top_dir=None):
         """

@@ -35,5 +35,6 @@ test_parallel
 
 --parallel overrides -v and --early-details but not -q
 
+`testotest --parallel --list sample_tests`
 `testotest --parallel -v --early-details sample_tests`
 `testotest --parallel -q sample_tests`

@@ -6,6 +6,7 @@ import argparse
 from result import *
 from runner import *
 from loader import *
+from suite import *
 
 __unittest = True
 
@@ -20,7 +21,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
     catch = False
 
     def __init__(self, argv=[], entry_settings={},
-                 suiteClass=unittest2.TestSuite,
+                 suiteClass=ErrorTolerantOptimisedTestSuite,
                  resultClass=WellRestedTestResult,
                  loaderClass=AutoDiscoveringTestLoader,
                  runnerClass=OutputDelegatingTestRunner):
@@ -79,7 +80,8 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
         super(FullyConfigurableTestProgram, self).createTests()
         # since we don't create the suite ourselves, we have to set it's flags manually
         self.test.parallel = self.parallel if hasattr(self, 'parallel') else False
-        self.test.concurrency = self.concurrency if hasattr(self, 'concurrency') else 2
+        self.test.concurrency = int(self.concurrency) if hasattr(self, 'concurrency') else 2
+        self.test.progName = self.progName
 
     @property
     def parser(self):

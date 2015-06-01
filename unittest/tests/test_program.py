@@ -30,7 +30,7 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
 
     def test_default_classes_no_argv(self):
         program = FullyConfigurableTestProgram(argv=['fctest', 'sample_tests'])
-        self.assertEqual(program.suiteClass, unittest2.TestSuite)
+        self.assertEqual(program.suiteClass, ErrorTolerantOptimisedTestSuite)
         self.assertTrue(isinstance(program.testLoader, AutoDiscoveringTestLoader))
         self.assertTrue(isinstance(program.testRunner, OutputDelegatingTestRunner))
         self.assertTrue(isinstance(program.testResult, WellRestedTestResult))

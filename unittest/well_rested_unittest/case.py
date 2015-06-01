@@ -3,6 +3,7 @@ import unittest2
 import fixtures
 import logging
 import time
+import os
 import datetime
 from types import *  # noqa
 from unittest.util import safe_repr
@@ -27,6 +28,10 @@ class ResourcedTestCase(testtools.TestCase, unittest2.TestCase):
     _capture_error = True
     log_format = '%(asctime)s [%(levelname)s] %(name)s %(lineno)d: %(message)s'
     log_level = logging.DEBUG
+
+    def __init__(self, *args, **kwargs):
+        super(ResourcedTestCase, self).__init__(*args, **kwargs)
+        self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def setUp(self):
         # test cases can have a logger too

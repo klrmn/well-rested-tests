@@ -9,11 +9,12 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
     Pass in result, not resultclass, and delegate all output
     printing to the result.
     """
-    result = WellRestedTestResult()
 
     def __init__(self, result=None):
         if result:
             self.result = result
+        else:
+            self.result = WellRestedTestResult()
 
     @staticmethod
     def parserOptions(parser):
@@ -36,6 +37,7 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
         "Run the given test case or test suite."
         unittest2.signals.registerResult(self.result)
         self.result.startTestRun()
+        # TODO: output URL where the user can watch run progress
         try:
             test(self.result)
         finally:

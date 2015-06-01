@@ -94,20 +94,6 @@ class TestWellRestedTestResult(unittest2.TestCase):
         self.assertFalse(result.dots)
         self.assertTrue(result.early_details)
 
-    def test_output_parallel(self):
-        result = well_rested_unittest.WellRestedTestResult(
-            verbosity=2, early_details=True, parallel=True)
-        self.assertFalse(result.showAll)
-        self.assertTrue(result.dots)
-        self.assertFalse(result.early_details)
-
-    def test_output_quiet_parallel(self):
-        result = well_rested_unittest.WellRestedTestResult(
-            verbosity=0, parallel=True)
-        self.assertFalse(result.showAll)
-        self.assertFalse(result.dots)
-        self.assertFalse(result.early_details)
-
     def test_startTestRun_stopTestRun(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=0, failing_file="")
