@@ -96,6 +96,8 @@ class WellRestedTestResult(
 
         group.add_argument('--color', dest='color', action='store_true',
                            help='Colorize parallel result output (default False).')
+        group.add_argument('--update', dest='update', action='store_true',
+                           help="Update previous test run (default False).")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                            help='path to well-rested-tests config file')
         return parser
@@ -112,6 +114,7 @@ class WellRestedTestResult(
             wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
             progName=object.progName,
             color=object.color if hasattr(object, 'color') else False,
+            update=object.update if hasattr(object, 'update') else False,
         )
 
     @staticmethod
@@ -126,6 +129,7 @@ class WellRestedTestResult(
   -v, --verbose         Verbose output
   -e, --early-details   Print details immediately.
   --color               Colorize parallel result output (default False).
+  --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
@@ -133,7 +137,8 @@ class WellRestedTestResult(
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
-                 wrt_conf=None, progName=None, color=False):
+                 wrt_conf=None, progName=None, color=False,
+                 update=False):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -142,6 +147,8 @@ class WellRestedTestResult(
         :param wrt_conf: path to well-rested-tests config file
         :param progName: so the suite can find out what program name to use for parallelization
         :param color:    boolean (default False) color parallel output streams
+        :param update:   boolean (default False) update previous test run
+                         Note: update is not needed by workers.
         :return:
         """
         # some initial processing
@@ -195,6 +202,7 @@ class WellRestedTestResult(
         self.early_details = verbosity > 2
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
+        self.update = update
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
@@ -223,6 +231,8 @@ class WellRestedTestResult(
             self.stream.writeln(self.separator2)
         self.start_time = time.time()
         if self.wrt_client and not self.worker:
+            # TODO: if master, fetch previous run and --update
+            # TODO: if worker and --run-url, update run provided
             try:
                 self.wrt_client.startTestRun(
                     timestamp=self.start_time)
@@ -232,8 +242,9 @@ class WellRestedTestResult(
                     % e.message)
                 exit(1)
         if self.failing_file:
+            mode = 'ab' if self.update else 'wb'
             self.failing_file = unittest2.runner._WritelnDecorator(
-                open(self.failing_file, 'wb'))
+                open(self.failing_file, mode))
         unittest2.TextTestResult.startTestRun(self)
 
     def stopTestRun(self):

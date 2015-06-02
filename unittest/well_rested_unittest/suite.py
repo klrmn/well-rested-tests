@@ -175,6 +175,7 @@ class ParallelSuite(unittest2.TestSuite):
             command.append('-q')
         if result.color:
             command.append('--color')
+        # TODO: send run url to worker
         command.append('--from-file .worker%s' % self.worker)
         command.append(' '.join(self.testNames))
         command = ' '.join(command)
