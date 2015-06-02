@@ -166,6 +166,8 @@ class ParallelSuite(unittest2.TestSuite):
             command.append('-v')
         else:
             command.append('-q')
+        if result.color:
+            command.append('--color')
         command.append(' '.join(self._tests))
         command = ' '.join(command)
         if self.debug:

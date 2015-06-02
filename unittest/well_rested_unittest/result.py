@@ -8,8 +8,41 @@ import argparse
 import wrtclient
 import json
 from threading import Lock
+try:
+    from blessings import Terminal
+except ImportError:
+    Terminal = None
 
 __unittest = True
+
+
+class ColorizedWritelnDecorator(object):
+    """Used to decorate file-like objects with a handy 'writeln' method"""
+    def __init__(self, stream):
+        self.stream = stream
+        self.color = None
+        self.terminal = Terminal(stream=stream)
+
+    def __getattr__(self, attr):
+        if attr in ('stream', '__getstate__', 'set_color', 'write'):
+            raise AttributeError(attr)
+        return getattr(self.stream, attr)
+
+    def writeln(self, arg=None):
+        if arg:
+            self.write(arg)
+        self.write('\n') # text-mode streams translate to \r\n if needed
+
+    def write(self, arg):
+        if arg and arg != '\n':
+            self.stream.write(self.terminal.color(self.color))
+            self.stream.write(arg)
+            self.stream.write(self.terminal.normal)
+        elif arg == '\n':
+            self.stream.write(arg)
+
+    def set_color(self, color):
+        self.color = color
 
 
 class WellRestedTestResult(
@@ -62,6 +95,8 @@ class WellRestedTestResult(
                            action='store_true',
                            help="Print details immediately, "
                                 "(overrides -q and -d)")
+        group.add_argument('--color', dest='color', action='store_true',
+                           help='Colorize parallel result output (default False).')
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                            help='path to well-rested-tests config file')
         return parser
@@ -78,7 +113,8 @@ class WellRestedTestResult(
             failing_file=object.failing_file if
                 hasattr(object, 'failing_file') else '.failing',
             wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
-            progName=object.progName
+            progName=object.progName,
+            color=object.color if hasattr(object, 'color') else False,
         )
 
     @staticmethod
@@ -93,6 +129,7 @@ class WellRestedTestResult(
   -v, --verbose         Verbose output
   -q, --quiet           Silent output
   -e, --early-details   Print details immediately, (overrides -q and -d)
+  --color               Colorize parallel result output (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
@@ -100,7 +137,7 @@ class WellRestedTestResult(
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
                  early_details=False, failing_file='.failing',
-                 wrt_conf=None, progName=None):
+                 wrt_conf=None, progName=None, color=False):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -110,13 +147,23 @@ class WellRestedTestResult(
         :param early_details: boolean (default False)
         :param wrt_conf: path to well-rested-tests config file
         :param progName: so the suite can find out what program name to use for parallelization
+        :param color:    boolean (default False) color parallel output streams
         :return:
         """
         # initialize all the things
+        self.worker = os.getenv('WRT_WORKER_ID', None)
+        self.color = color
+        if self.color and not Terminal:
+            sys.stderr.write('WARNING: Package `blessings` not installed. '
+                             'Results will not be colorized.\n')
+            self.color = False
         self.warnings = []
         self.infos = []
         self.fixtures = 0
-        self.stream = unittest2.runner._WritelnDecorator(sys.stderr)
+        if self.color and self.worker:
+            self.stream = ColorizedWritelnDecorator(sys.stderr)
+        else:
+            self.stream = unittest2.runner._WritelnDecorator(sys.stderr)
         self.skip_reasons = {}
         self.__now = None
         self._tags = testtools.tags.TagContext()
@@ -132,7 +179,6 @@ class WellRestedTestResult(
         self._test_run = None
         self.wrt_conf = None
         self.wrt_client = None
-        self.worker = os.getenv('WRT_WORKER_ID', None)
         self.progName = progName
         self.absorbLock = Lock()
 
@@ -146,6 +192,8 @@ class WellRestedTestResult(
         # worker (ie, parallel) eliminates failing_file and early_details
         if self.worker:
             self.worker = int(self.worker)
+            if self.color:
+                self.stream.set_color(self.worker)
             self.failing_file = None
             self.early_details = False
         self.showAll = verbosity > 1

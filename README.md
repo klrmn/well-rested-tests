@@ -42,6 +42,8 @@ when passed the appropriate flags, will communicate with the well-rested-tests-s
 cd well_rested_unittest
 python setup.py develop/install
 
+Note: If blessings is installed, the --color option for the results will work.
+
 ## TODO:
 * handle attachments
 * handle update existing run
