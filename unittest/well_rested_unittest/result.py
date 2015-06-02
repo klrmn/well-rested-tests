@@ -294,6 +294,7 @@ class WellRestedTestResult(
             try:
                 other_result = json.loads(stdout)
             except ValueError:
+                self.stream.writeln(stdout)
                 raise
             self.failures.extend(other_result['failures'])
             self.errors.extend(other_result['errors'])
