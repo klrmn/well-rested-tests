@@ -7,6 +7,7 @@ import time
 import argparse
 import wrtclient
 import json
+import shutil
 from threading import Lock
 try:
     from blessings import Terminal
@@ -194,7 +195,8 @@ class WellRestedTestResult(
             self.worker = int(self.worker)
             if self.color:
                 self.stream.set_color(self.worker)
-            self.failing_file = None
+            if failing_file:
+                self.failing_file += str(self.worker)
             self.early_details = False
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
@@ -300,6 +302,10 @@ class WellRestedTestResult(
             self.infos.extend(other_result['infos'])
             self.warnings.extend(other_result['warnings'])
             self.fixtures += other_result['fixtures']
+            if self.failing_file:
+                with open('.failing%s' % other_result['worker']) as src:
+                    shutil.copyfileobj(src, self.failing_file)
+
 
     # test related methods
     def getDescription(self, test):
