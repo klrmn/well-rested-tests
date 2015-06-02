@@ -79,23 +79,21 @@ class WellRestedTestResult(
                            action='store_true',
                            help="Consider unexpected success a failure "
                                 "(default True).")
-        group.add_argument('-d', '--dots', dest='verbosity',
-                           action='store_const', const=1,
-                           help='print dots (default)')
-        group.add_argument('-r', '--reason-only', dest='verbosity',
-                           action='store_const', const=2,
-                           help='Output with reasons')
-        group.add_argument('-v', '--verbose', dest='verbosity',
-                           action='store_const', const=3,
-                           help='Verbose output')
-        # quiet is verbosity = -1 rather than zero so that it is truthy
+        # verbosity options
+        # (quiet is verbosity = -1 rather than zero so that it is truthy)
         group.add_argument('-q', '--quiet', dest='verbosity',
                            action='store_const', const=-1,
                            help='Silent output')
-        group.add_argument('-e', '--early-details', dest='early_details',
-                           action='store_true',
-                           help="Print details immediately, "
-                                "(overrides -q and -d)")
+        group.add_argument('-d', '--dots', dest='verbosity',
+                           action='store_const', const=1,
+                           help='print dots (default)')
+        group.add_argument('-v', '--verbose', dest='verbosity',
+                           action='store_const', const=2,
+                           help='Verbose output')
+        group.add_argument('-e', '--early-details', dest='verbosity',
+                           action='store_const', const=3,
+                           help="Print details immediately.")
+
         group.add_argument('--color', dest='color', action='store_true',
                            help='Colorize parallel result output (default False).')
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
@@ -109,8 +107,6 @@ class WellRestedTestResult(
             uxsuccess_not_failure=object.uxsuccess_not_failure if
                 hasattr(object, 'uxsuccess_not_failure') else False,
             verbosity=object.verbosity if hasattr(object, 'verbosity') else 1,
-            early_details=object.early_details if
-                hasattr(object, 'early_details') else False,
             failing_file=object.failing_file if
                 hasattr(object, 'failing_file') else '.failing',
             wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
@@ -125,11 +121,10 @@ class WellRestedTestResult(
   -f, --failfast        Stop on first fail or error
   -x, --uxsuccess-not-failure
                         Consider unexpected success a failure (default True).
-  -d, --dots            print dots (default)
-  -r, --reason-only     Output with reasons
-  -v, --verbose         Verbose output
   -q, --quiet           Silent output
-  -e, --early-details   Print details immediately, (overrides -q and -d)
+  -d, --dots            print dots (default)
+  -v, --verbose         Verbose output
+  -e, --early-details   Print details immediately.
   --color               Colorize parallel result output (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
@@ -137,34 +132,34 @@ class WellRestedTestResult(
 
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
-                 early_details=False, failing_file='.failing',
+                 failing_file='.failing',
                  wrt_conf=None, progName=None, color=False):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
         :param verbosity: 0 (none, default), 1 (dots),
-                          >1 (reason only), >2 (verbose),
-                          will be set to 0 if stream is None
-        :param early_details: boolean (default False)
+                          2 (verbose), 3 (early-details)
         :param wrt_conf: path to well-rested-tests config file
         :param progName: so the suite can find out what program name to use for parallelization
         :param color:    boolean (default False) color parallel output streams
         :return:
         """
-        # initialize all the things
+        # some initial processing
         self.worker = os.getenv('WRT_WORKER_ID', None)
         self.color = color
         if self.color and not Terminal:
             sys.stderr.write('WARNING: Package `blessings` not installed. '
                              'Results will not be colorized.\n')
             self.color = False
-        self.warnings = []
-        self.infos = []
-        self.fixtures = 0
         if self.color and self.worker:
             self.stream = ColorizedWritelnDecorator(sys.stderr)
         else:
             self.stream = unittest2.runner._WritelnDecorator(sys.stderr)
+
+        # initialize all the things
+        self.warnings = []
+        self.infos = []
+        self.fixtures = 0
         self.skip_reasons = {}
         self.__now = None
         self._tags = testtools.tags.TagContext()
@@ -183,27 +178,23 @@ class WellRestedTestResult(
         self.progName = progName
         self.absorbLock = Lock()
 
+        # super
         unittest2.TextTestResult.__init__(self, self.stream, False, verbosity)
 
-        # set the settings
+        # process the settings
         self.failfast = failfast
         self.uxsuccess_not_failure = uxsuccess_not_failure
         self.failing_file = failing_file
-        self.early_details = early_details
-        # worker (ie, parallel) eliminates failing_file and early_details
+        # worker (ie, parallel) set color and failing_file
         if self.worker:
             self.worker = int(self.worker)
             if self.color:
                 self.stream.set_color(self.worker)
             if failing_file:
                 self.failing_file += str(self.worker)
-            self.early_details = False
+        self.early_details = verbosity > 2
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
-        # --early-details overrides -q and -d
-        if self.early_details:
-            self.showAll = True
-            self.dots = False
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
@@ -305,7 +296,6 @@ class WellRestedTestResult(
             if self.failing_file:
                 with open('.failing%s' % other_result['worker']) as src:
                     shutil.copyfileobj(src, self.failing_file)
-
 
     # test related methods
     def getDescription(self, test):

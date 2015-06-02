@@ -18,12 +18,11 @@ def wrt():
     FullyConfigurableTestProgram(
         entry_settings={
             'verbosity': 2,
-            'wrt_conf': '.wrt.conf',
-            'failing_file': '.wrt.conf'}
+            'wrt_conf': '.wrt.conf'}
     ).runTests()
 
 
 def otest():
     FullyConfigurableTestProgram(
-        entry_settings={'verbosity': 2, 'early_details': True}
+        entry_settings={'verbosity': 3}
     ).runTests()

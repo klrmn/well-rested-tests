@@ -69,7 +69,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_output_verbose(self):
         result = well_rested_unittest.WellRestedTestResult(
-            verbosity=3)
+            verbosity=2)
         self.assertTrue(result.showAll)
         self.assertFalse(result.dots)
         self.assertFalse(result.early_details)
@@ -89,7 +89,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_output_early_details(self):
         result = well_rested_unittest.WellRestedTestResult(
-            verbosity=0, early_details=True)
+            verbosity=3)
         self.assertTrue(result.showAll)
         self.assertFalse(result.dots)
         self.assertTrue(result.early_details)

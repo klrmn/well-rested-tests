@@ -79,7 +79,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.parallel = True
         suite.debug = True
         suite.testNames = ['sample_tests']
-        result = WellRestedTestResult(verbosity=0, failing_file="", progName='otest')
+        result = WellRestedTestResult(verbosity=0, failing_file="", progName='wrtest')
         suite.run(result)
         # unfortunately, they don't distribute the exact same way every time
         self.assertEqual(len(suite._tests), 2, suite._tests)
@@ -114,7 +114,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.parallel = True
         suite.concurrency = 4
         suite.testNames = ['sample_tests']
-        result = WellRestedTestResult(verbosity=0, failing_file="", progName='otest')
+        result = WellRestedTestResult(verbosity=0, failing_file="", progName='wrtest')
         suite.run(result)
 
         # unfortunately, they don't distribute the exact same way every time

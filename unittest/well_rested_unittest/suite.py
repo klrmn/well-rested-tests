@@ -167,6 +167,8 @@ class ParallelSuite(unittest2.TestSuite):
         ]
         if result.dots:
             command.append('--dots')
+        elif result.early_details:
+            command.append('--early-details')
         elif result.showAll:
             command.append('-v')
         else:
