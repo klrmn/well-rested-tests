@@ -78,6 +78,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite = loader.loadTestsFromNames(['sample_tests'], None)
         suite.parallel = True
         suite.debug = True
+        suite.testNames = ['sample_tests']
         result = WellRestedTestResult(verbosity=0, failing_file="", progName='otest')
         suite.run(result)
         # unfortunately, they don't distribute the exact same way every time
@@ -112,6 +113,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.debug = True
         suite.parallel = True
         suite.concurrency = 4
+        suite.testNames = ['sample_tests']
         result = WellRestedTestResult(verbosity=0, failing_file="", progName='otest')
         suite.run(result)
 

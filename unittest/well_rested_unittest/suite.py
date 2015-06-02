@@ -144,15 +144,20 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
 
 class ParallelSuite(unittest2.TestSuite):
 
-    def __init__(self, tests, worker, debug=False):
+    def __init__(self, tests, worker, testNames, debug=False):
         self._tests = tests
         from loader import AutoDiscoveringTestLoader
         self.worker = worker
+        self.testNames = testNames
         self.debug = debug
 
     def run(self, result):
         if not self._tests:
             return result
+
+        # write the tests out to a file so the command line won't be too long
+        with open('.worker%s' % self.worker, 'wb') as f:
+            f.write('\n'.join(self._tests))
 
         # build command -
         # don't pipe stderr to stdout, or the dots won't be visible in real-time
@@ -168,7 +173,8 @@ class ParallelSuite(unittest2.TestSuite):
             command.append('-q')
         if result.color:
             command.append('--color')
-        command.append(' '.join(self._tests))
+        command.append('--from-file .worker%s' % self.worker)
+        command.append(' '.join(self.testNames))
         command = ' '.join(command)
         if self.debug:
             result.stream.writeln(command)
@@ -405,7 +411,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                     sys.stderr.write('    ')
                     sys.stderr.write('\n    '.join(tests))
                     sys.stderr.write('\n')
-                self._tests.append(ParallelSuite(tests, worker, debug=self.debug))
+                self._tests.append(ParallelSuite(tests, worker, self.testNames, debug=self.debug))
             if self.list_tests:
                 exit(0)
         else:

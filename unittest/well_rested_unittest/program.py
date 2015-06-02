@@ -71,10 +71,6 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
             exit(1)
         # find the tests
         self.createTests()
-        # since we don't create the suite ourselves, we have to set it's flags manually
-        self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
-        self.test.debug = self.debug if hasattr(self, 'debug') else False
-        self.test.reverse = self.reverse if hasattr(self, 'reverse') else False
 
     def createTests(self):
         super(FullyConfigurableTestProgram, self).createTests()
@@ -82,6 +78,10 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
         self.test.parallel = self.parallel if hasattr(self, 'parallel') else False
         self.test.concurrency = int(self.concurrency) if hasattr(self, 'concurrency') else 2
         self.test.progName = self.progName
+        self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
+        self.test.debug = self.debug if hasattr(self, 'debug') else False
+        self.test.reverse = self.reverse if hasattr(self, 'reverse') else False
+        self.test.testNames = self.testNames
 
     @property
     def parser(self):
