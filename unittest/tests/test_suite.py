@@ -65,9 +65,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        tests = suite.list()
         self.assertEqual(
-            tests,
+            suite.list(),
             ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1',
              'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_2'])
 
@@ -85,22 +84,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         self.assertEqual(len(suite._tests), 2, suite._tests)
         self.assertEqual(len(suite._tests[0]._tests), 4, suite._tests[0]._tests)
         self.assertEqual(len(suite._tests[1]._tests), 2, suite._tests[1]._tests)
-        # self.assertEqual(
-        #     suite._tests, [
-        #         ErrorTolerantOptimisedTestSuite([
-        #             sample_tests.test_class.TestClass2(methodName='test_1'),
-        #             sample_tests.test_class.TestClass2(methodName='test_2'),
-        #             sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-        #             sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-        #         ]),
-        #         ErrorTolerantOptimisedTestSuite([
-        #             sample_tests.test_class.TestClass1(methodName='test_1'),
-        #             sample_tests.test_class.TestClass1(methodName='test_2'),
-        #         ]),
-        #     ])
-
         # the results represent the collection
-        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.failures), 0, result.failures)
         # the destroy error may or may not happen before the last test
         self.assertEqual(len(result.warnings), 3, result.warnings)
         self.assertIn(len(result.errors), (2, 3), result.errors)
@@ -116,33 +101,14 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.testNames = ['sample_tests']
         result = WellRestedTestResult(verbosity=0, failing_file="", progName='wrtest')
         suite.run(result)
-
         # unfortunately, they don't distribute the exact same way every time
         self.assertEqual(len(suite._tests), 4)
         self.assertEqual(len(suite._tests[0]._tests), 2)
         self.assertEqual(len(suite._tests[1]._tests), 2)
         self.assertEqual(len(suite._tests[2]._tests), 2)
         self.assertEqual(len(suite._tests[3]._tests), 0)
-        # self.assertEqual(
-        #     suite._tests, [
-        #         ErrorTolerantOptimisedTestSuite([
-        #             sample_tests.test_class.TestClass2(methodName='test_1'),
-        #             sample_tests.test_class.TestClass2(methodName='test_2'),
-        #         ]),
-        #         ErrorTolerantOptimisedTestSuite([
-        #             sample_tests.test_class.TestClass1(methodName='test_1'),
-        #             sample_tests.test_class.TestClass1(methodName='test_2'),
-        #         ]),
-        #         ErrorTolerantOptimisedTestSuite([
-        #             sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-        #             sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-        #         ]),
-        #         ErrorTolerantOptimisedTestSuite([
-        #         ]),
-        #     ])
-
         # the results represent the collection
-        self.assertEqual(len(result.failures), 0)
+        self.assertEqual(len(result.failures), 0, result.failures)
         # the destroy error may or may not happen before the last test
         self.assertEqual(len(result.warnings), 3, result.warnings)
         self.assertIn(len(result.errors), (2, 3), result.errors)
