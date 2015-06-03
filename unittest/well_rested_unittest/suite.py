@@ -28,6 +28,10 @@ class RoundRobinList(list):
     def extend(self, list):
         self._iter.next().extend(list)
 
+    def distribute(self, list):
+        for item in list:
+            self._iter.next().append(item)
+
 
 class DetailCollector(object):
 
@@ -401,7 +405,10 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             # Spit this partition out into result
             for resource_set in order:
                 result.extend(resource_set_tests[resource_set])
-        result.extend(resource_set_tests[no_resources])
+        if self.parallel:
+            result.distribute(resource_set_tests[no_resources])
+        else:
+            result.extend(resource_set_tests[no_resources])
 
         if self.parallel:
             # sys.stderr.write('%s\n\n' % self._tests)
