@@ -29,7 +29,7 @@ class RoundRobinList(list):
         self._iter.next().extend(list)
 
 
-class DetailCollector():
+class DetailCollector(object):
 
     def __init__(self, TRM, result, appendix):
         self.TRM = TRM
