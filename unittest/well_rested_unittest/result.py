@@ -313,8 +313,9 @@ class WellRestedTestResult(
                 'testsRun': self.testsRun,
                 'fixtures': self.fixtures,
                 'worker': self.worker,
-            })
-            sys.stdout.write(output + '\n')
+            }, sort_keys=True, indent=4, separators=(',', ': '))
+            with open('.worker%s' % self.worker, 'wb') as f:
+                f.write(output + '\n')
         elif self.dots or self.showAll:
                 self.printErrors()
                 self.printSummary()

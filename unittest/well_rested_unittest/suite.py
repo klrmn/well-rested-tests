@@ -176,14 +176,10 @@ class ParallelSuite(unittest2.TestSuite):
         if self.debug:
             result.stream.writeln(command)
 
-        try:
-            # output will contain dumped json of the worker's results
-            output = subprocess.check_output(command, shell=True)
-        except subprocess.CalledProcessError as e:
-            output = e.output
-        if self.debug:
-            result.stream.writeln(output)
-        result.absorbResult(output)
+        # output will contain dumped json of the worker's results
+        subprocess.call(command, shell=True)
+        with open('.worker%s' % self.worker, 'rb') as f:
+            result.absorbResult(f.read())
 
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
