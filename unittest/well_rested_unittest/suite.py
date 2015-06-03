@@ -219,6 +219,17 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                            help='Number of parallel threads (default 2).')
         return parser
 
+    def set_flags(self, object):
+        # since we don't create the suite ourselves, we have to set it's flags manually
+        self.parallel = object.parallel if hasattr(object, 'parallel') else False
+        self.concurrency = int(object.concurrency) if hasattr(object, 'concurrency') else 2
+        self.list_tests = object.list_tests if hasattr(object, 'list_tests') else False
+        self.debug = object.debug if hasattr(object, 'debug') else False
+        self.reverse = object.reverse if hasattr(object, 'reverse') else False
+        # these two are grabbed from the program object
+        self.testNames = object.testNames
+        self.progName = object.progName
+
     @staticmethod
     def expectedHelpText(cls):
         return """

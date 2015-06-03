@@ -20,7 +20,7 @@ class NewResult(WellRestedTestResult):
     pass
 
 
-class NewSuite(unittest2.TestSuite):
+class NewSuite(ErrorTolerantOptimisedTestSuite):
     pass
 
 
