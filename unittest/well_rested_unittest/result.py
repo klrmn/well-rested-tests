@@ -346,7 +346,7 @@ class WellRestedTestResult(
         output = ''
         if self.worker:
             output = output + '(%s) ' % self.worker
-        output = output + str(test)
+        output = output + (test.id() if hasattr(test, 'id') else str(test))
         return output
 
     def startTest(self, test):
