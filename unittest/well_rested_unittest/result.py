@@ -4,6 +4,7 @@ import requests
 import sys
 import os
 import time
+import datetime
 import argparse
 import wrtclient
 import json
@@ -96,6 +97,8 @@ class WellRestedTestResult(
 
         group.add_argument('--color', dest='color', action='store_true',
                            help='Colorize parallel result output (default False).')
+        group.add_argument('--timestamp', dest='timestamp', action='store_true',
+                           help='Include test start-time in output (default False).')
         group.add_argument('--update', dest='update', action='store_true',
                            help="Update previous test run (default False).")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
@@ -115,6 +118,7 @@ class WellRestedTestResult(
             progName=object.progName,
             color=object.color if hasattr(object, 'color') else False,
             update=object.update if hasattr(object, 'update') else False,
+            timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
         )
 
     @staticmethod
@@ -129,6 +133,7 @@ class WellRestedTestResult(
   -v, --verbose         Verbose output
   -e, --early-details   Print details immediately.
   --color               Colorize parallel result output (default False).
+  --timestamp           Include test start-time in output (default False).
   --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
@@ -138,7 +143,7 @@ class WellRestedTestResult(
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
-                 update=False):
+                 update=False, timestamp=False):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -149,6 +154,7 @@ class WellRestedTestResult(
         :param color:    boolean (default False) color parallel output streams
         :param update:   boolean (default False) update previous test run
                          Note: update is not needed by workers.
+        :param timestamp: Include test start-time in output.
         :return:
         """
         # some initial processing
@@ -203,6 +209,7 @@ class WellRestedTestResult(
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.update = update
+        self.timestamp = timestamp
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
@@ -225,17 +232,20 @@ class WellRestedTestResult(
                 self.reasons[reason] += 1
         return reason
 
+    def format_time(self, timestamp):
+        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
+
     # run related methods
     def startTestRun(self):
+        self.start_time = time.time()
         if self.showAll and not self.worker:
             self.stream.writeln(self.separator2)
-        self.start_time = time.time()
         if self.wrt_client and not self.worker:
             # TODO: if master, fetch previous run and --update
             # TODO: if worker and --run-url, update run provided
             try:
                 self.wrt_client.startTestRun(
-                    timestamp=self.start_time)
+                    timestamp=self.format_time(self.start_time))
             except requests.exceptions.ConnectionError as e:
                 self.stream.writeln(
                     'ERROR: Unable to connect to the well-rested-tests server\n%s'
@@ -321,8 +331,11 @@ class WellRestedTestResult(
     def startTest(self, test):
         self.test_start_time[test] = time.time()
         if self.wrt_client:
-            self.wrt_client.startTest(test, timestamp=self.test_start_time[test])
+            self.wrt_client.startTest(
+                test, timestamp=self.format_time(self.test_start_time[test]))
         if self.showAll:
+            if self.timestamp:
+                self.stream.write(self.format_time(self.test_start_time[test]) + ' ')
             self.stream.write('%s ... ' % self.getDescription(test))
         unittest2.TestResult.startTest(self, test)
 
@@ -339,8 +352,9 @@ class WellRestedTestResult(
                 self.stream.writeln(self.separator2)
                 self._detail = ""
         if self.wrt_client:
-            self.wrt_client.stopTest(test, timestamp=self.test_end_time[test],
-                                     duration=elapsed_time)
+            self.wrt_client.stopTest(
+                test, timestamp=self.format_time(self.test_end_time[test]),
+                duration=elapsed_time)
         unittest2.TestResult.stopTest(self, test)
 
     def addExpectedFailure(self, test, err=None, details=None):
@@ -426,6 +440,8 @@ class WellRestedTestResult(
         self.test_start_time[fixture] = time.time()
         # update well-rested-tests with in-progress state and start time
         if self.showAll:
+            if self.timestamp:
+                self.stream.write(self.format_time(self.test_start_time[test]) + ' ')
             self.stream.write("%s ... " % self.getDescription(fixture))
 
     def stopFixture(self, fixture):

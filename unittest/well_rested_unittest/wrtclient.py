@@ -3,7 +3,6 @@ import os
 import sys
 import json
 import time
-import datetime
 import subprocess
 import ConfigParser
 
@@ -92,9 +91,6 @@ class WRTClient(object):
         except requests.exceptions.HTTPError:
             self.stream.writeln(resp.text)
             raise
-
-    def format_time(self, timestamp):
-        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
 
     @property
     def project_url(self):
@@ -221,14 +217,14 @@ class WRTClient(object):
                 failing.append(json.loads(resp.text)['name'])
         return failing
 
-    def startTestRun(self, timestamp=time.time()):
+    def startTestRun(self, timestamp=None):
         tag_list = self.buildTags()
 
         # create the run
         data = {
             'project': self.project_url,
             'owner': self.user_url,
-            'start_time': self.format_time(timestamp),
+            'start_time': timestamp,
             'status': 'inprogress',
             'tags': tag_list
         }
@@ -239,8 +235,8 @@ class WRTClient(object):
         self._run_url = json.loads(resp.text)['url']
 
     def stopTestRun(self, **kwargs):
-        timestamp = kwargs.pop('timestamp', time.time())
-        kwargs['end_time'] = self.format_time(timestamp)
+        timestamp = kwargs.pop('timestamp', None)
+        kwargs['end_time'] = timestamp
         kwargs['owner'] = self.user_url
         kwargs['project'] = self.project_url
         if self.debug:
@@ -248,13 +244,13 @@ class WRTClient(object):
         resp = self.session.put(self._run_url, data=kwargs)
         self.raise_for_status(resp)
 
-    def startTest(self, test, timestamp=time.time()):
+    def startTest(self, test, timestamp=None):
         url = self._existing_tests[test.id()][1]
         data = {
             'case': self._existing_tests[test.id()][0],
             'run': self._run_url,
             'owner': self.user_url,
-            'start_time': self.format_time(timestamp),
+            'start_time': timestamp,
             'status': 'inprogress',
         }
         if self.debug:
@@ -357,10 +353,10 @@ class WRTClient(object):
         resp = self.session.put(url, data=data)
         self.raise_for_status(resp)
 
-    def stopTest(self, test, timestamp=time.time(), duration=None):
+    def stopTest(self, test, timestamp=None, duration=None):
         url = self._existing_tests[test.id()][1]
         data = {
-            'end_time': self.format_time(timestamp),
+            'end_time': timestamp,
             'duration': duration,
             'case': self._existing_tests[test.id()][0],
             'run': self._run_url,
