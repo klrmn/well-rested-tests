@@ -215,6 +215,26 @@ class WellRestedTestResult(
             self.wrt_client = wrtclient.WRTClient(
                 wrt_conf, self.stream, debug=False)
 
+    def worker_flags(self):
+        """The suite shouldn't need to know what the flags are."""
+        # TODO: send run url to worker
+        flags = []
+
+        if self.dots:
+            flags.append('--dots')
+        elif self.early_details:
+            flags.append('--early-details')
+        elif self.showAll:
+            flags.append('-v')
+        else:
+            flags.append('-q')
+
+        if self.color:
+            flags.append('--color')
+        if self.timestamp:
+            flags.append('--timestamp')
+        return flags
+
     def _err_details_to_string(self, test, err=None, details=None):
         """Convert an error in exc_info form or a contents dict to a string."""
         if err is not None:

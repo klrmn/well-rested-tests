@@ -169,19 +169,7 @@ class ParallelSuite(unittest2.TestSuite):
             'WRT_WORKER_ID=%s' % self.worker,
             result.progName,
         ]
-        if result.dots:
-            command.append('--dots')
-        elif result.early_details:
-            command.append('--early-details')
-        elif result.showAll:
-            command.append('-v')
-        else:
-            command.append('-q')
-        if result.color:
-            command.append('--color')
-        if result.timestamp:
-            command.append('--timestamp')
-        # TODO: send run url to worker
+        command.extend(result.worker_flags())
         command.append('--from-file .worker%s' % self.worker)
         command.append(' '.join(self.testNames))
         command = ' '.join(command)
