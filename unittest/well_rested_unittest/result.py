@@ -462,7 +462,7 @@ class WellRestedTestResult(
         # update well-rested-tests with in-progress state and start time
         if self.showAll:
             if self.timestamp:
-                self.stream.write(self.format_time(self.test_start_time[test]) + ' ')
+                self.stream.write(self.format_time(self.test_start_time[fixture]) + ' ')
             self.stream.write("%s ... " % self.getDescription(fixture))
 
     def stopFixture(self, fixture):
