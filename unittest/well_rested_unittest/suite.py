@@ -195,10 +195,6 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     """
 
     current_resources = set()
-    list_tests = False
-    debug = False
-    parallel = False
-    concurrency = 2
 
     @staticmethod
     def parserOptions(parser):
@@ -216,13 +212,14 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                            action='store_true',
                            help='Run tests in parallel (up to --concurrency threads).')
         group.add_argument('--concurrency', dest='concurrency', default=2,
-                           help='Number of parallel threads (default 2).')
+                           help='Number of parallel threads (default 2), or `auto`.')
         return parser
 
     def set_flags(self, object):
-        # since we don't create the suite ourselves, we have to set it's flags manually
+        # when the suite is created by the loader, flags are not set automatically,
+        # so use this method
         self.parallel = object.parallel if hasattr(object, 'parallel') else False
-        self.concurrency = int(object.concurrency) if hasattr(object, 'concurrency') else 2
+        self.concurrency = object.concurrency if hasattr(object, 'concurrency') else 2
         self.list_tests = object.list_tests if hasattr(object, 'list_tests') else False
         self.debug = object.debug if hasattr(object, 'debug') else False
         self.reverse = object.reverse if hasattr(object, 'reverse') else False
@@ -239,18 +236,18 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
   --debug               Debug the suite functionality.
   --parallel            Run tests in parallel (up to --concurrency threads).
   --concurrency CONCURRENCY
-                        Number of parallel threads (default 2).
+                        Number of parallel threads (default 2), or `auto`.
 """ % cls.__name__
 
-    @staticmethod
-    def factory(cls, object):
-        return cls()
-
-    def __init__(self, tests):
+    def __init__(self, tests, concurrency=2, parallel=False, list_tests=False,
+                 debug=False, reverse=False, testNames=[]):
         super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
-        self.list_tests = False
-        self.debug = False
-        self.reverse = False
+        self.list_tests = list_tests
+        self.debug = debug
+        self.reverse = reverse
+        self.parallel = parallel
+        self.concurrency = concurrency
+        self.testNames = testNames
         self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def switch(self, new_resource_set, result):
@@ -357,6 +354,30 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         suite._tests = filtered
         return suite
 
+    def sortTestsByConcurrency(self):
+        buckets = {}
+        for test in self._tests:
+            concurrency = test.concurrency if hasattr(test, 'concurrency') else 1
+            buckets.setdefault(concurrency, [])
+            buckets[concurrency].append(test)
+        self._tests = []
+        self.parallel = False
+        keys = buckets.keys()
+        keys.sort()
+        keys.reverse()
+        self._tests.extend([ErrorTolerantOptimisedTestSuite(
+                buckets[c], concurrency=c, debug=self.debug, parallel=True,
+                list_tests=self.list_tests, reverse=self.reverse, testNames=self.testNames)
+            for c in keys])
+        if self.list_tests:
+            for suite in self._tests:
+                sys.stderr.write('CONCURRENCY GROUP %s:\n' % suite.concurrency)
+                try:
+                    suite.sortTests()
+                except SystemExit:
+                    pass
+            exit(0)
+
     def sortTests(self):
         """Attempt to topographically sort the contained tests.
 
@@ -366,6 +387,10 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
         Feel free to override to improve the sort behaviour.
         """
+        if self.concurrency == 'auto':
+            self.sortTestsByConcurrency()
+            return
+
         # We group the tests by the resource combinations they use,
         # since there will usually be fewer resource combinations than
         # actual tests and there can never be more: This gives us 'nodes' or
@@ -387,7 +412,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             resource_set_graph, no_resources)
 
         if self.parallel:
-            result = RoundRobinList(self.concurrency)
+            result = RoundRobinList(int(self.concurrency))
         else:
             result = []
 

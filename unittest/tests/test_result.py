@@ -13,6 +13,7 @@ class ExampleException(Exception):
 class TestWellRestedTestResult(unittest2.TestCase):
 
     maxDiff = None
+    concurrency = 4
 
     _err = None
     _details = None

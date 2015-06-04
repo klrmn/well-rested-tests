@@ -66,6 +66,5 @@ Note: If blessings is installed, the --color option for the results will work.
   by various tests in the `tests` directory.
 * manual_test_plan.rst defines a list of tests regarding output display
   that are better performed by hand
-* Note: it seems to be a bad idea to run tests that test parallelization
-  under parallelization. it makes the tests fail, and this seems like a
-  edge-enough case to put off for now.
+* Note: If you're going to run `tests` in parallel, set --concurrency auto
+  so that the tests of parallelism are tested one-at-a-time.

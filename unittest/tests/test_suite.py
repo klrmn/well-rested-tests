@@ -12,6 +12,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
     """Also tests ReportingTestResourceManager."""
 
     maxDiff = None
+    concurrency = 4
 
     # these tests are flakey. i have come up with (and fixed) three different
     # possible reasons, but they remain flakey
@@ -41,7 +42,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         self.assertIn(len(result.infos), (4, 7), result.infos)  # workaround
         self.assertEqual(len(result.failures), 0)
         self.assertEqual(len(result.errors), 0)
-        self.assertIn(result.fixtures, (5, 8))
+        self.assertIn(result.fixtures, (5, 8))  # workaround
 
     def test_no_errors(self):
         loader = AutoDiscoveringTestLoader(
@@ -69,6 +70,13 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             suite.list(),
             ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1',
              'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_2'])
+
+
+class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
+    """Also tests ReportingTestResourceManager."""
+
+    maxDiff = None
+    concurrency = 1
 
     def test_parallel_default_concurrency(self):
         loader = AutoDiscoveringTestLoader(
@@ -112,3 +120,4 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         # the destroy error may or may not happen before the last test
         self.assertEqual(len(result.warnings), 3, result.warnings)
         self.assertIn(len(result.errors), (2, 3), result.errors)
+
