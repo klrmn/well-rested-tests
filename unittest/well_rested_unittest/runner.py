@@ -1,4 +1,6 @@
 import unittest2
+import sys
+import os
 from result import WellRestedTestResult
 
 __unittest = True
@@ -15,6 +17,7 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
             self.result = result
         else:
             self.result = WellRestedTestResult()
+        self.worker = os.getenv('WRT_WORKER_ID', None)
 
     @staticmethod
     def parserOptions(parser):
@@ -40,6 +43,10 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
         # TODO: output URL where the user can watch run progress
         try:
             test(self.result)
+        except KeyboardInterrupt:
+            if not self.worker:
+                sys.stderr.write('ERROR: Exiting due to ^C.\n')
+            exit(130)  # bash return code for KeyboardInterrupt
         finally:
             self.result.stopTestRun()
         return self.result
