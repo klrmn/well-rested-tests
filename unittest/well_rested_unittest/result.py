@@ -97,6 +97,9 @@ class WellRestedTestResult(
 
         group.add_argument('--color', dest='color', action='store_true',
                            help='Colorize parallel result output (default False).')
+        group.add_argument('--run-url', dest='run_url', action='store',
+                           default=None,
+                           help='URL of run to be updated (default None).')
         group.add_argument('--timestamp', dest='timestamp', action='store_true',
                            help='Include test start-time in output (default False).')
         group.add_argument('--update', dest='update', action='store_true',
@@ -119,6 +122,7 @@ class WellRestedTestResult(
             color=object.color if hasattr(object, 'color') else False,
             update=object.update if hasattr(object, 'update') else False,
             timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
+            run_url=object.run_url if hasattr(object, 'run_url') else None,
         )
 
     @staticmethod
@@ -133,6 +137,7 @@ class WellRestedTestResult(
   -v, --verbose         Verbose output
   -e, --early-details   Print details immediately.
   --color               Colorize parallel result output (default False).
+  --run-url RUN_URL     URL of run to be updated (default None).
   --timestamp           Include test start-time in output (default False).
   --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
@@ -143,7 +148,7 @@ class WellRestedTestResult(
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
-                 update=False, timestamp=False):
+                 update=False, timestamp=False, run_url=None):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -155,6 +160,7 @@ class WellRestedTestResult(
         :param update:   boolean (default False) update previous test run
                          Note: update is not needed by workers.
         :param timestamp: Include test start-time in output.
+        :param run_url:   URL of run to be updated.
         :return:
         """
         # some initial processing
@@ -209,15 +215,16 @@ class WellRestedTestResult(
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.update = update
+        if self.update and not run_url:
+            run_url = 'previous'
         self.timestamp = timestamp
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
-                wrt_conf, self.stream, debug=False)
+                wrt_conf, self.stream, debug=False, run_url=run_url)
 
     def worker_flags(self):
         """The suite shouldn't need to know what the flags are."""
-        # TODO: send run url to worker
         flags = []
 
         if self.dots:
@@ -233,6 +240,10 @@ class WellRestedTestResult(
             flags.append('--color')
         if self.timestamp:
             flags.append('--timestamp')
+        if self.wrt_conf:
+            flags.extend([
+                '--wrt-conf %s' % self.wrt_conf,
+                '--run-url %s' % self.wrt_client._run_url])
         return flags
 
     def _err_details_to_string(self, test, err=None, details=None):
@@ -261,8 +272,6 @@ class WellRestedTestResult(
         if self.showAll and not self.worker:
             self.stream.writeln(self.separator2)
         if self.wrt_client and not self.worker:
-            # TODO: if master, fetch previous run and --update
-            # TODO: if worker and --run-url, update run provided
             try:
                 self.wrt_client.startTestRun(
                     timestamp=self.format_time(self.start_time))
@@ -286,15 +295,7 @@ class WellRestedTestResult(
             status='fail'
         if self.wrt_client and not self.worker:
             self.wrt_client.stopTestRun(
-                timestamp=self.end_time,
-                duration=elapsed_time,
-                status=status,
-                tests_run=self.testsRun,
-                failures=len(self.failures),
-                errors=len(self.errors),
-                skips=len(self.skipped),
-                xpasses=len(self.unexpectedSuccesses),
-                xfails=len(self.expectedFailures))
+                timestamp=self.format_time(self.end_time))
         testtools.TestResult.stopTestRun(self)
         if self.failing_file:
             self.failing_file.close()
@@ -350,20 +351,24 @@ class WellRestedTestResult(
         return output
 
     def startTest(self, test):
-        self.test_start_time[test] = time.time()
+        if not isinstance(test, unittest2.TestCase):
+            return
+        self.test_start_time[test.id()] = time.time()
         if self.wrt_client:
             self.wrt_client.startTest(
-                test, timestamp=self.format_time(self.test_start_time[test]))
+                test, timestamp=self.format_time(self.test_start_time[test.id()]))
         if self.showAll:
             if self.timestamp:
-                self.stream.write(self.format_time(self.test_start_time[test]) + ' ')
+                self.stream.write(self.format_time(self.test_start_time[test.id()]) + ' ')
             self.stream.write('%s ... ' % self.getDescription(test))
         unittest2.TestResult.startTest(self, test)
 
     def stopTest(self, test):
         """also print out test duration"""
-        self.test_end_time[test] = time.time()
-        elapsed_time = self.test_end_time[test] - self.test_start_time[test]
+        if not isinstance(test, unittest2.TestCase):
+            return
+        self.test_end_time[test.id()] = time.time()
+        elapsed_time = self.test_end_time[test.id()] - self.test_start_time[test.id()]
         if self.showAll:
             self.stream.writeln(" in %.3f" % elapsed_time)
         if self.early_details:
@@ -374,7 +379,7 @@ class WellRestedTestResult(
                 self._detail = ""
         if self.wrt_client:
             self.wrt_client.stopTest(
-                test, timestamp=self.format_time(self.test_end_time[test]),
+                test, timestamp=self.format_time(self.test_end_time[test.id()]),
                 duration=elapsed_time)
         unittest2.TestResult.stopTest(self, test)
 
@@ -600,5 +605,7 @@ class WellRestedTestResult(
             summary.append(" (%s)" % (", ".join(reasons)))
         if infos:
             summary.append(" (%s)\n" % (", ".join(infos),))
+        if self.wrt_conf:
+            summary.append(self.wrt_client._run_url)
         return "\n".join(summary)
 

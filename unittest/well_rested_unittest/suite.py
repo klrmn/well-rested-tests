@@ -250,6 +250,13 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         self.testNames = testNames
         self.worker = os.getenv('WRT_WORKER_ID', None)
 
+    def id(self):
+        if self.concurrency and self.concurrency != 'auto':
+            return 'Concurrency Suite %s' % self.concurrency
+        elif self.worker:
+            return 'Worker %s' % self.worker
+        return 'Unknown %s' % self.__class__.__name__
+
     def switch(self, new_resource_set, result):
         """Switch from self.current_resources to 'new_resource_set'.
 
@@ -288,7 +295,8 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             map(lambda t: t.join(), threads)
         else:
             if result.wrt_client:
-                result.wrt_client.registerTests(self._tests)
+                result.wrt_client.registerTests([
+                    test for test in self._tests if isinstance(test, unittest2.TestCase)])
             for test in self._tests:
                 if result.shouldStop:
                     break
