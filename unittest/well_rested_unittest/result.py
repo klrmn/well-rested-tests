@@ -284,21 +284,30 @@ class WellRestedTestResult(
             mode = 'ab' if self.update else 'wb'
             self.failing_file = unittest2.runner._WritelnDecorator(
                 open(self.failing_file, mode))
+        if self.showAll and self.wrt_client and not self.worker:
+            self.stream.writeln("Watch progress at: %s" % self.wrt_client._run_url)
+            self.stream.writeln(self.separator2)
         unittest2.TextTestResult.startTestRun(self)
 
-    def stopTestRun(self):
+    def stopTestRun(self, abort=False):
         self.end_time = time.time()
         elapsed_time = self.end_time - self.start_time
-        if self.wasSuccessful():
+        if abort:
+            status='aborted'
+        elif self.wasSuccessful():
             status='pass'
         else:
             status='fail'
         if self.wrt_client and not self.worker:
             self.wrt_client.stopTestRun(
-                timestamp=self.format_time(self.end_time))
+                timestamp=self.format_time(self.end_time),
+                status=status)
         testtools.TestResult.stopTestRun(self)
         if self.failing_file:
             self.failing_file.close()
+            if status == 'aborted':
+                with open('%s.bak' % self.failing_file, 'rb') as src:
+                    shutil.copyfileobj(src, self.failing_file)
         # if we're a worker, print the sumarizing stuff to
         # stdout instead of stderr
         if self.worker:
@@ -464,7 +473,7 @@ class WellRestedTestResult(
     def startFixture(self, fixture):
         self.fixtures += 1
         self.test_start_time[fixture] = time.time()
-        # update well-rested-tests with in-progress state and start time
+        # TODO: update well-rested-tests with in-progress state and start time
         if self.showAll:
             if self.timestamp:
                 self.stream.write(self.format_time(self.test_start_time[fixture]) + ' ')
@@ -482,14 +491,14 @@ class WellRestedTestResult(
                 self.stream.writeln(self._detail)
                 self.stream.writeln(self.separator2)
                 self._detail = ""
-        # update well-rested-tests with end time
+        # TODO: update well-rested-tests with end time
 
     def addWarning(self, fixture, err=None, details=None):
         """
         Use this method if you'd like to print a fixture warning
         without having it effect the outcome of the test run.
         """
-        # upload to well-rested-tests
+        # TODO: upload to well-rested-tests
         reason = None
         if details and 'reason' in details:
             reason = details.pop('reason').as_text()
@@ -510,7 +519,7 @@ class WellRestedTestResult(
         """
         Use this method if you'd like to print a fixture success.
         """
-        # upload to well-rested-tests
+        # TODO: upload to well-rested-tests
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:

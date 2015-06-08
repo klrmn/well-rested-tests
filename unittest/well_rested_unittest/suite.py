@@ -187,7 +187,6 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
     # TODO: abort suite if running too long
     # TODO: implement create-or-fetch of well-rested-tests run
     # TODO: --parallel
-    # TODO: notice KeyboardInterupt and replace .failing.bak
     """
     Catch errors thrown by resource creation / destruction,
     fail the affected test, and keep going.

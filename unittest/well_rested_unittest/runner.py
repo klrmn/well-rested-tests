@@ -40,14 +40,14 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
         "Run the given test case or test suite."
         unittest2.signals.registerResult(self.result)
         self.result.startTestRun()
-        # TODO: output URL where the user can watch run progress
+        e = False
         try:
             test(self.result)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as e:
             if not self.worker:
                 sys.stderr.write('ERROR: Exiting due to ^C.\n')
             exit(130)  # bash return code for KeyboardInterrupt
         finally:
-            self.result.stopTestRun()
+            self.result.stopTestRun(abort=e)
         return self.result
 

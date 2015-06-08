@@ -216,7 +216,8 @@ class WRTClient(object):
             self.stream.writeln('%s %s' % (self.runs_url, params))
         resp = self.session.get(self.runs_url, params=params)
         self.raise_for_status(resp)
-        runs = [run for run in json.loads(resp.text) if run['status'] != 'inprogress']
+        runs = [run for run in json.loads(resp.text)
+                if run['status'] not in ['inprogress', 'aborted']]
         runs = sorted(runs, key=lambda k: k['start_time'], reverse=True)
         return runs[0]['url']
 
