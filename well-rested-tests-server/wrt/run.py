@@ -17,8 +17,6 @@ class Run(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     # TODO: on test run end:
     # TODO:   mark all remaining inprogress results aborted
-    duration = models.DurationField(
-        null=True, blank=True, editable=False)
     status = models.CharField(null=True,
         max_length=12, blank=True,
         choices=(
@@ -29,6 +27,12 @@ class Run(models.Model):
         )
     )
     tags = models.ManyToManyField(Tag, blank=True)
+
+    @property
+    def duration(self):
+        if self.start_time and self.end_time and self.status != 'inprogress':
+            return self.end_time - self.start_time
+        return None
 
     @property
     def registered(self):
