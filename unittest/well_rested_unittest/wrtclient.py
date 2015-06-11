@@ -30,7 +30,6 @@ class WRTUserNotFound(WRTException):
 class WRTClient(object):
 
     def __init__(self, wrt_conf, stream, debug=False, run_url=None):
-        # TODO: update_last
         self.stream = stream
         self.debug = debug
         if os.path.isfile(wrt_conf):

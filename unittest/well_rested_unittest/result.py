@@ -49,8 +49,6 @@ class ColorizedWritelnDecorator(object):
 
 class WellRestedTestResult(
     testtools.TestResult, unittest2.TextTestResult):
-    # TODO: --run-url (for --parallel)
-    # TODO: do start and end times as a property on the test object
     # TODO: abort on too many fixture warnings:infos
     # TODO: abort on too many test failures/errors
     """
@@ -196,6 +194,7 @@ class WellRestedTestResult(
         self.wrt_client = None
         self.progName = progName
         self.absorbLock = Lock()
+        self._expected_tests = 0
 
         # super
         unittest2.TextTestResult.__init__(self, self.stream, False, verbosity)
@@ -267,6 +266,13 @@ class WellRestedTestResult(
         return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
 
     # run related methods
+    def registerTests(self, tests):
+        filtered_tests = [test for test in tests
+                          if isinstance(test, unittest2.TestCase)]
+        self._expected_tests = len(filtered_tests)
+        if self.wrt_conf:
+            self.wrt_client.registerTests(filtered_tests)
+
     def startTestRun(self):
         self.start_time = time.time()
         if self.showAll and not self.worker:

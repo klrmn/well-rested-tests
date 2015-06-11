@@ -183,10 +183,7 @@ class ParallelSuite(unittest2.TestSuite):
 
 
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
-    # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
-    # TODO: implement create-or-fetch of well-rested-tests run
-    # TODO: --parallel
     """
     Catch errors thrown by resource creation / destruction,
     fail the affected test, and keep going.
@@ -293,9 +290,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             map(lambda t: t.start(), threads)
             map(lambda t: t.join(), threads)
         else:
-            if result.wrt_client:
-                result.wrt_client.registerTests([
-                    test for test in self._tests if isinstance(test, unittest2.TestCase)])
+            result.registerTests(self._tests)
             for test in self._tests:
                 if result.shouldStop:
                     break
