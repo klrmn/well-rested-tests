@@ -54,7 +54,7 @@ class WRTClient(object):
         self._project_id = None
         self._user_url = None
         self._run_url = run_url
-        self._run_id = None
+        self._run_id = self.id_from_url(self._run_url) if self._run_url else None
         self._existing_tests = {}
         self._existing_fixtures = {}
         if self.debug:
