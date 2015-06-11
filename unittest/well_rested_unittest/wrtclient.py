@@ -237,6 +237,7 @@ class WRTClient(object):
                 failing.append(json.loads(resp.text)['name'])
         return failing
 
+    # methods for run
     def startTestRun(self, timestamp=None):
         if self._run_url == 'previous':
             self._run_url = self.getPreviousTestRun()
@@ -274,6 +275,7 @@ class WRTClient(object):
         resp = self.session.put(self._run_url, data=kwargs)
         self.raise_for_status(resp)
 
+    # methods for tests
     def startTest(self, test, timestamp=None):
         result_url = self._existing_tests[test.id()]['result_url']
         data = {

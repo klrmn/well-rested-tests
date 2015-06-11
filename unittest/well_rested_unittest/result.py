@@ -264,6 +264,8 @@ class WellRestedTestResult(
         return _details_to_str(details, special='traceback')
 
     def _process_reason(self, test, details):
+        # TODO: also process err, make it into a detail, and assign reason
+        # TODO:  (maybe not here)
         reason = None
         if details and 'reason' in details:
             reason = details.pop('reason').as_text()
@@ -442,7 +444,6 @@ class WellRestedTestResult(
                     self._expected_tests * (self.fail_percent / 100)):
                 self.stop()
 
-
     def addFailure(self, test, err=None, details=None):
         if self.wrt_client:
             self.wrt_client.failTest(test, err, details)
@@ -498,14 +499,12 @@ class WellRestedTestResult(
     def startFixture(self, fixture):
         self.fixtures += 1
         self.test_start_time[fixture] = time.time()
-        # TODO: update well-rested-tests with in-progress state and start time
         if self.showAll:
             if self.timestamp:
                 self.stream.write(self.format_time(self.test_start_time[fixture]) + ' ')
             self.stream.write("%s ... " % self.getDescription(fixture))
 
     def stopFixture(self, fixture):
-        """also print out test duration"""
         self.test_end_time[fixture] = time.time()
         elapsed_time = self.test_end_time[fixture] - self.test_start_time[fixture]
         if self.showAll:
