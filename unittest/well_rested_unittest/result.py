@@ -500,6 +500,9 @@ class WellRestedTestResult(
         self.fixtures += 1
         fix_id = fixture.id()
         self.test_start_time[fix_id] = time.time()
+        if self.wrt_conf:
+            self.wrt_client.startFixture(
+                fixture, self.format_time(self.test_start_time[fixture.id()]))
         if self.showAll:
             if self.timestamp:
                 self.stream.write(self.format_time(self.test_start_time[fix_id]) + ' ')
@@ -509,6 +512,9 @@ class WellRestedTestResult(
         fix_id = fixture.id()
         self.test_end_time[fix_id] = time.time()
         elapsed_time = self.test_end_time[fix_id] - self.test_start_time[fix_id]
+        if self.wrt_conf:
+            self.wrt_client.stopFixture(
+                fixture, self.format_time(self.test_end_time[fixture.id()]), elapsed_time)
         if self.showAll:
             self.stream.writeln(" in %.3f" % elapsed_time)
         if self.early_details:
@@ -517,14 +523,12 @@ class WellRestedTestResult(
                 self.stream.writeln(self._detail)
                 self.stream.writeln(self.separator2)
                 self._detail = ""
-        # TODO: update well-rested-tests with end time
 
     def addWarning(self, fixture, err=None, details=None):
         """
         Use this method if you'd like to print a fixture warning
         without having it effect the outcome of the test run.
         """
-        # TODO: upload to well-rested-tests
         reason = None
         if details and 'reason' in details:
             reason = details.pop('reason').as_text()
@@ -532,6 +536,8 @@ class WellRestedTestResult(
                 self.reasons[reason] = 1
             else:
                 self.reasons[reason] += 1
+        if self.wrt_conf:
+            self.wrt_client.failFixture(fixture, err, details, reason)
         if self.showAll:
             self.stream.write("warning")
             if reason:
@@ -545,7 +551,8 @@ class WellRestedTestResult(
         """
         Use this method if you'd like to print a fixture success.
         """
-        # TODO: upload to well-rested-tests
+        if self.wrt_conf:
+            self.wrt_client.passFixture(fixture)
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:

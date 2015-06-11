@@ -59,7 +59,7 @@ class Run(models.Model):
 
     def tests(self):
         from result import Result
-        return Result.objects.filter(run=self)
+        return Result.objects.filter(run=self).filter(case__fixture=False)
 
     def failed_tests(self):
         return self.tests.filter(status='fail')

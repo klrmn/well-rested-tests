@@ -56,6 +56,7 @@ class WRTClient(object):
         self._run_url = run_url
         self._run_id = None
         self._existing_tests = {}
+        self._existing_fixtures = {}
         if self.debug:
             self.stream.writeln(
                 'WRTClient created for %s/%s running %s on %s' %
@@ -198,6 +199,15 @@ class WRTClient(object):
             }
         if self.debug:
             self.stream.writeln('%s' % self._existing_tests)
+
+        # create a database of existing fixtures
+        resp = self.session.get(self.cases_url, params={
+                'project': self.project_id,
+                'fixture': True
+            })
+        self.raise_for_status(resp)
+        for fixture in json.loads(resp.text):
+            self._existing_fixtures[fixture['name']] = {'case_url': fixture['url']}
 
     def buildTags(self):
         # gather known tags for this project
