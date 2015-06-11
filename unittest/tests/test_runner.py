@@ -1,18 +1,22 @@
 import unittest2
 
-from well_rested_unittest import OutputDelegatingTestRunner, WellRestedTestResult
+import well_rested_unittest
 
 
-class NewResult(WellRestedTestResult):
+class NewResult(well_rested_unittest.WellRestedTestResult):
     pass
 
 
 class TestOutputDelegatingTestRunner(unittest2.TestCase):
 
+    concurrency = 4
+
     def test_default_result(self):
-        runner = OutputDelegatingTestRunner()
-        self.assertTrue(isinstance(runner.result, WellRestedTestResult))
+        runner = well_rested_unittest.OutputDelegatingTestRunner()
+        self.assertTrue(isinstance(
+            runner.result, well_rested_unittest.WellRestedTestResult))
 
     def test_specific_result(self):
-        runner = OutputDelegatingTestRunner(result=NewResult())
+        runner = well_rested_unittest.OutputDelegatingTestRunner(
+            result=NewResult())
         self.assertTrue(isinstance(runner.result, NewResult))

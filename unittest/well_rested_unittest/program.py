@@ -6,6 +6,7 @@ import argparse
 from result import *
 from runner import *
 from loader import *
+from suite import *
 
 __unittest = True
 
@@ -20,7 +21,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
     catch = False
 
     def __init__(self, argv=[], entry_settings={},
-                 suiteClass=unittest2.TestSuite,
+                 suiteClass=ErrorTolerantOptimisedTestSuite,
                  resultClass=WellRestedTestResult,
                  loaderClass=AutoDiscoveringTestLoader,
                  runnerClass=OutputDelegatingTestRunner):
@@ -68,12 +69,15 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
                 '.factory(object) in agreement with .parserOptions(parser)\n%s\n'
                 % (self.__class__.__name__, e))
             exit(1)
-        # find the tests
+        # populate self.test with a TestSuite
         self.createTests()
-        # set flags on the suite
-        self.test.list_tests = self.list_tests if hasattr(self, 'list_tests') else False
-        self.test.debug = self.debug if hasattr(self, 'debug') else False
-        self.test.reverse = self.reverse if hasattr(self, 'reverse') else False
+        try:
+            self.test.set_flags(self)
+        except AttributeError as e:
+            sys.stderr.write(
+                'ERROR: Suite class used by %s should implement '
+                '.set_flags(object) in agreement with .parserOptions(parser)\n%s\n'
+                % (self.__class__.__name__, e))
 
     @property
     def parser(self):
@@ -92,8 +96,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
             parser = self.resultClass.parserOptions(parser)
             parser = self.runnerClass.parserOptions(parser)
             parser = self.loaderClass.parserOptions(parser)
-            if hasattr(self.suiteClass, 'parserOptions'):
-                parser = self.suiteClass.parserOptions(parser)
+            parser = self.suiteClass.parserOptions(parser)
         except AttributeError as e:
             # hey, it's developer error
             sys.stderr.write(

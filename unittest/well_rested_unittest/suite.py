@@ -3,6 +3,12 @@ import testresources
 import testtools
 import fixtures
 import unittest2
+import itertools
+import traceback
+import os
+import sys
+from threading import Thread
+import subprocess
 
 
 __all__ = [
@@ -12,7 +18,22 @@ __all__ = [
 ]
 
 
-class DetailCollector():
+class RoundRobinList(list):
+
+    def __init__(self, num):
+        for i in range(num):
+            self.append([])
+        self._iter = itertools.cycle(self)
+
+    def extend(self, list):
+        self._iter.next().extend(list)
+
+    def distribute(self, list):
+        for item in list:
+            self._iter.next().append(item)
+
+
+class DetailCollector(object):
 
     def __init__(self, TRM, result, appendix):
         self.TRM = TRM
@@ -56,9 +77,13 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         self.log_level = level
         self.logger = logging.getLogger(self.__class__.__name__)
         self.appendix = ''
+        self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def __str__(self):
         return self.appendix + ' ' + self.__class__.__name__
+
+    def id(self):
+        return self.__str__()
 
     # fix _make_all, _clean_all, and isDirty to use result and
     # inject the context manager to manage results
@@ -124,13 +149,44 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
                 mgr.finishedWith(res, result)
 
 
+class ParallelSuite(unittest2.TestSuite):
+
+    def __init__(self, tests, worker, testNames, debug=False):
+        self._tests = tests
+        from loader import AutoDiscoveringTestLoader
+        self.worker = worker
+        self.testNames = testNames
+        self.debug = debug
+
+    def run(self, result):
+        if not self._tests:
+            return result
+
+        # write the tests out to a file so the command line won't be too long
+        with open('.worker%s' % self.worker, 'wb') as f:
+            f.write('\n'.join(self._tests))
+
+        # build command -
+        # don't pipe stderr to stdout, or the dots won't be visible in real-time
+        command = [
+            'WRT_WORKER_ID=%s' % self.worker,
+            result.progName,
+        ]
+        command.extend(result.worker_flags())
+        command.append('--from-file .worker%s' % self.worker)
+        command.append(' '.join(self.testNames))
+        command = ' '.join(command)
+        if self.debug:
+            result.stream.writeln(command)
+
+        # output will contain dumped json of the worker's results
+        subprocess.call(command, shell=True)
+        with open('.worker%s' % self.worker, 'rb') as f:
+            result.absorbResult(f.read())
+
+
 class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittest2.TestSuite):
-    # TODO: --reverse
-    # TODO: --update-last-wrt-run
     # TODO: abort suite if running too long
-    # TODO: implement create-or-fetch of well-rested-tests run
-    # TODO: --parallel
-    # TODO: notice KeyboardInterupt and replace .failing.bak
     """
     Catch errors thrown by resource creation / destruction,
     fail the affected test, and keep going.
@@ -151,7 +207,24 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         group.add_argument('--debug', dest='debug',
                            action='store_true',
                            help='Debug the suite functionality.')
+        group.add_argument('--parallel', dest='parallel',
+                           action='store_true',
+                           help='Run tests in parallel (up to --concurrency threads).')
+        group.add_argument('--concurrency', dest='concurrency', default=2,
+                           help='Number of parallel threads (default 2), or `auto`.')
         return parser
+
+    def set_flags(self, object):
+        # when the suite is created by the loader, flags are not set automatically,
+        # so use this method
+        self.parallel = object.parallel if hasattr(object, 'parallel') else False
+        self.concurrency = object.concurrency if hasattr(object, 'concurrency') else 2
+        self.list_tests = object.list_tests if hasattr(object, 'list_tests') else False
+        self.debug = object.debug if hasattr(object, 'debug') else False
+        self.reverse = object.reverse if hasattr(object, 'reverse') else False
+        # these two are grabbed from the program object
+        self.testNames = object.testNames
+        self.progName = object.progName
 
     @staticmethod
     def expectedHelpText(cls):
@@ -160,17 +233,28 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
   --list                Output list of tests, then exist.
   --reverse             Reverse order of tests.
   --debug               Debug the suite functionality.
+  --parallel            Run tests in parallel (up to --concurrency threads).
+  --concurrency CONCURRENCY
+                        Number of parallel threads (default 2), or `auto`.
 """ % cls.__name__
 
-    @staticmethod
-    def factory(cls, object):
-        return cls()
-
-    def __init__(self, tests):
+    def __init__(self, tests, concurrency=2, parallel=False, list_tests=False,
+                 debug=False, reverse=False, testNames=[]):
         super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
-        self.list_tests = False
-        self.debug = False
-        self.reverse = False
+        self.list_tests = list_tests
+        self.debug = debug
+        self.reverse = reverse
+        self.parallel = parallel
+        self.concurrency = concurrency
+        self.testNames = testNames
+        self.worker = os.getenv('WRT_WORKER_ID', None)
+
+    def id(self):
+        if self.concurrency and self.concurrency != 'auto':
+            return 'Concurrency Suite %s' % self.concurrency
+        elif self.worker:
+            return 'Worker %s' % self.worker
+        return 'Unknown %s' % self.__class__.__name__
 
     def switch(self, new_resource_set, result):
         """Switch from self.current_resources to 'new_resource_set'.
@@ -194,42 +278,49 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         return [test.id() for test in self._tests]
 
     def run(self, result):
-        self.sortTests()
-        if self.reverse:  # TODO: move this to sortTests()
+        self.sortTests()  # will sub-divide for parallelization and list if parallel
+        if self.reverse:
             self._tests.reverse()
         if self.list_tests:
             for test in self.list():
                 result.stream.writeln(test)
             exit(0)
-        if result.wrt_client:
-            result.wrt_client.registerTests(self._tests)
-        for test in self._tests:
-            if result.shouldStop:
-                break
-            resources = getattr(test, 'resources', [])
-            new_resources = set()
-            for name, resource in resources:
-                new_resources.update(resource.neededResources())
+        elif self.parallel:
+            threads = [Thread(
+                target=suite.run,
+                args=(result,))
+                for suite in self._tests]
+            map(lambda t: t.start(), threads)
+            map(lambda t: t.join(), threads)
+        else:
+            result.registerTests(self._tests)
+            for test in self._tests:
+                if result.shouldStop:
+                    break
+                resources = getattr(test, 'resources', [])
+                new_resources = set()
+                for name, resource in resources:
+                    new_resources.update(resource.neededResources())
+                try:
+                    self.switch(new_resources, result)
+                except Exception:
+                    if self.debug:
+                        result.stream.writeln(traceback.format_exc())
+                    # the exception has been reported on the fixture,
+                    # but we still want to report failed for the test itself
+                    # so that it will show up in --failing
+                    result.startTest(test)
+                    result.addError(test, details={
+                        'reason': testtools.content.text_content(
+                            'Error handling fixtures')})
+                    result.stopTest(test)
+                    continue  # next test
+                test(result)
             try:
-                self.switch(new_resources, result)
-            except Exception as e:
-                if self.debug:
-                    result.stream.writeln(str(e))
-                # the exception has been reported on the fixture,
-                # but we still want to report failed for the test itself
-                # so that it will show up in --failing
-                result.startTest(test)
-                result.addError(test, details={
-                    'reason': testtools.content.text_content(
-                        'Error handling fixtures')})
-                result.stopTest(test)
-                continue
-            test(result)
-        try:
-            self.switch(set(), result)
-        except Exception:
-            # this exception has already been reported, ignore it.
-            pass
+                self.switch(set(), result)
+            except Exception:
+                # this exception has already been reported, ignore it.
+                pass
         return result
 
     def addTest(self, test_case_or_suite):
@@ -267,3 +358,98 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                 filtered.append(test)
         suite._tests = filtered
         return suite
+
+    def sortTestsByConcurrency(self):
+        buckets = {}
+        for test in self._tests:
+            concurrency = test.concurrency if hasattr(test, 'concurrency') else 1
+            buckets.setdefault(concurrency, [])
+            buckets[concurrency].append(test)
+        self._tests = []
+        self.parallel = False
+        keys = buckets.keys()
+        keys.sort()
+        keys.reverse()
+        self._tests.extend([ErrorTolerantOptimisedTestSuite(
+                buckets[c], concurrency=c, debug=self.debug, parallel=True,
+                list_tests=self.list_tests, reverse=self.reverse, testNames=self.testNames)
+            for c in keys])
+        if self.list_tests:
+            for suite in self._tests:
+                sys.stderr.write('CONCURRENCY GROUP %s:\n' % suite.concurrency)
+                try:
+                    suite.sortTests()
+                except SystemExit:
+                    pass
+            exit(0)
+
+    def sortTests(self):
+        """Attempt to topographically sort the contained tests.
+
+        This function biases to reusing a resource: it assumes that resetting
+        a resource is usually cheaper than a teardown + setup; and that most
+        resources are not dirtied by most tests.
+
+        Feel free to override to improve the sort behaviour.
+        """
+        if self.concurrency == 'auto':
+            self.sortTestsByConcurrency()
+            return
+
+        # We group the tests by the resource combinations they use,
+        # since there will usually be fewer resource combinations than
+        # actual tests and there can never be more: This gives us 'nodes' or
+        # 'resource_sets' that represent many tests using the same set of
+        # resources.
+        resource_set_tests = testresources.split_by_resources(self._tests)
+        # Partition into separate sets of resources, there is no ordering
+        # preference between sets that do not share members. Rationale:
+        # If resource_set A and B have no common resources, AB and BA are
+        # equally good - the global setup/teardown sums are identical. Secondly
+        # if A shares one or more resources with C, then pairing AC|CA is
+        # better than having B between A and C, because the shared resources
+        # can be reset or reused. Having partitioned we can use connected graph
+        # logic on each partition.
+        resource_set_graph = testresources._resource_graph(resource_set_tests)
+        no_resources = frozenset()
+        # A list of resource_set_tests, all fully internally connected.
+        partitions = testresources._strongly_connected_components(
+            resource_set_graph, no_resources)
+
+        if self.parallel:
+            result = RoundRobinList(int(self.concurrency))
+        else:
+            result = []
+
+        for partition in partitions:
+            # we process these at the end for no particularly good reason (it
+            # makes testing slightly easier).
+            if partition == [no_resources]:
+                continue
+            order = self._makeOrder(partition)
+            # Spit this partition out into result
+            for resource_set in order:
+                result.extend(resource_set_tests[resource_set])
+        if self.parallel:
+            result.distribute(resource_set_tests[no_resources])
+        else:
+            result.extend(resource_set_tests[no_resources])
+
+        if self.parallel:
+            # sys.stderr.write('%s\n\n' % self._tests)
+            self._tests = []
+            for worker, batch in enumerate(result):
+                worker += 1
+                if self.reverse:
+                    batch.reverse()
+                tests = [test.id() for test in batch]
+                if self.list_tests:
+                    sys.stderr.write('WORKER %s:\n' % worker)
+                    sys.stderr.write('    ')
+                    sys.stderr.write('\n    '.join(tests))
+                    sys.stderr.write('\n')
+                self._tests.append(ParallelSuite(tests, worker, self.testNames, debug=self.debug))
+            if self.list_tests:
+                exit(0)
+        else:
+            self._tests = result

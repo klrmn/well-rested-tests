@@ -17,8 +17,6 @@ class Run(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     # TODO: on test run end:
     # TODO:   mark all remaining inprogress results aborted
-    duration = models.DurationField(
-        null=True, blank=True, editable=False)
     status = models.CharField(null=True,
         max_length=12, blank=True,
         choices=(
@@ -28,12 +26,13 @@ class Run(models.Model):
             ('aborted', 'aborted'),
         )
     )
-    tests_run = models.IntegerField(default=0, blank=True)
-    failures = models.IntegerField(default=0, blank=True)
-    errors = models.IntegerField(default=0, blank=True)
-    xpasses = models.IntegerField(default=0, blank=True)
-    xfails = models.IntegerField(default=0, blank=True)
     tags = models.ManyToManyField(Tag, blank=True)
+
+    @property
+    def duration(self):
+        if self.start_time and self.end_time and self.status != 'inprogress':
+            return self.end_time - self.start_time
+        return None
 
     @property
     def registered(self):
@@ -42,9 +41,25 @@ class Run(models.Model):
     def __str__(self):
         return '%s %s (%s)' % (self.project, self.id, self.owner)
 
+    @property
+    def tests_run(self):
+        return len(self.tests())
+
+    @property
+    def failures(self):
+        return len(self.failed_tests())
+
+    @property
+    def xpasses(self):
+        return len(self.xpassed_tests())
+
+    @property
+    def xfails(self):
+        return len(self.xfailed_tests())
+
     def tests(self):
         from result import Result
-        return Result.objects.filter(run=self)
+        return Result.objects.filter(run=self).filter(case__fixture=False)
 
     def failed_tests(self):
         return self.tests.filter(status='fail')
@@ -69,7 +84,7 @@ class Run(models.Model):
 
 class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'start_time', 'end_time', 'duration', 'status', 'description',
-                    'registered', 'tests_run', 'failures', 'errors', 'xpasses', 'xfails')
+                    'registered', 'tests_run', 'failures', 'xpasses', 'xfails')
     list_filter = ('project', 'owner', 'status', 'start_time')
 
 
@@ -79,7 +94,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         model = Run
         fields = ('id', 'url', 'owner', 'project',
                   'start_time', 'end_time', 'duration', 'status',
-                  'tests_run', 'failures', 'errors', 'xpasses', 'xfails',
+                  'tests_run', 'failures', 'xpasses', 'xfails',
                   'tags')
 
 

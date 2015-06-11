@@ -3,7 +3,6 @@ import os
 import sys
 import json
 import time
-import datetime
 import subprocess
 import ConfigParser
 
@@ -29,15 +28,8 @@ class WRTUserNotFound(WRTException):
 
 
 class WRTClient(object):
-    _project_url = None
-    _project_id = None
-    _user_url = None
-    _run_url = None
-    _existing_tests = {}
 
-    def __init__(self, wrt_conf, stream, debug=False, protocol='http'):
-        # TODO: update_last
-        self.protocol = protocol
+    def __init__(self, wrt_conf, stream, debug=False, run_url=None):
         self.stream = stream
         self.debug = debug
         if os.path.isfile(wrt_conf):
@@ -47,16 +39,24 @@ class WRTClient(object):
             raise WRTConfNotFound('%s is not a file' % wrt_conf)
 
         self.session = requests.Session()
-        self.session.mount(
-            'http://', adapter=requests.adapters.HTTPAdapter(max_retries=3))
         try:
             self.username = self.config.get('default', 'USERNAME')
             self.password = self.config.get('default', 'PASSWORD')
             self.server = self.config.get('default', 'SERVER')
             self.project_name = self.config.get('default', 'PROJECT_NAME')
+            self.protocol = self.config.get('default', 'PROTOCOL')
         except ConfigParser.Error as e:
             raise WRTConfigParamNotFound(e.message)
+        self.session.mount(
+            '%s://' % self.protocol, adapter=requests.adapters.HTTPAdapter(max_retries=3))
         self.session.auth = (self.username, self.password)
+        self._project_url = None
+        self._project_id = None
+        self._user_url = None
+        self._run_url = run_url
+        self._run_id = self.id_from_url(self._run_url) if self._run_url else None
+        self._existing_tests = {}
+        self._existing_fixtures = {}
         if self.debug:
             self.stream.writeln(
                 'WRTClient created for %s/%s running %s on %s' %
@@ -90,11 +90,16 @@ class WRTClient(object):
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
-            self.stream.writeln(resp.text)
+            try:
+                beginning = resp.text.find('<div id="summary">')
+                end = resp.text.find('<div id="traceback">')
+                self.stream.writeln(resp.text[beginning:end])
+            except Exception:
+                self.stream.writeln(resp.text)
             raise
 
-    def format_time(self, timestamp):
-        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
+    def id_from_url(self, url):
+        return int(url.split('/')[-2])
 
     @property
     def project_url(self):
@@ -113,8 +118,7 @@ class WRTClient(object):
 
     @property
     def project_id(self):
-        if not self._project_id:
-            self._project_id = int(self.project_url.split('/')[-2])
+        return self.id_from_url(self.project_url)
 
     @property
     def user_url(self):
@@ -132,37 +136,78 @@ class WRTClient(object):
         return self._user_url
 
     def registerTests(self, tests):
-        params = {'project': self.project_id}
-        if self.debug:
-            self.stream.writeln('Registering tests %s %s' % (self.cases_url, params))
-        resp = self.session.get(self.cases_url, )
-        self.raise_for_status(resp)
-        # find out what tests exist already in the database
-        for test in json.loads(resp.text):
-            self._existing_tests[test['name']] = [test['url']]
         for test in tests:
-            # if an incoming test doesn't exist already, add it
-            if test.id() not in self._existing_tests:
-                if self.debug:
-                    self.stream.writeln('Adding test %s' % test.id())
-                resp = self.session.post(
-                    self.cases_url, data={
-                        'name': test.id(),
-                        'project': self.project_url
-                    })
-                self.raise_for_status(resp)
-                self._existing_tests[test.id()] = [json.loads(resp.text)['url']]
-            # Add a result for each of the tests
+            # does the test exist in the cases table?
+            params = {
+                'project': self.project_id,
+                'name': test.id(),
+                'fixture': False
+            }
             if self.debug:
-                self.stream.writeln('Adding result for %s' % test.id())
-            resp = self.session.post(self.results_url, data={
-                'owner': self.user_url,
-                'case': self._existing_tests[test.id()],
-                'run': self._run_url,
-                'status': 'exists'
-            })
+                self.stream.writeln('Querying %s for %s' % (self.cases_url, params))
+            resp = self.session.get(self.cases_url, params=params)
             self.raise_for_status(resp)
-            self._existing_tests[test.id()].append(json.loads(resp.text)['url'])
+            if self.debug:
+                self.stream.writeln('Found %s' % json.loads(resp.text))
+            try:
+                case = json.loads(resp.text)[0]
+            except IndexError:
+                data = {
+                    'name': test.id(),
+                    'project': self.project_url
+                }
+                if self.debug:
+                    self.stream.writeln('Adding case for test %s' % data)
+                resp = self.session.post(self.cases_url, data=data)
+                self.raise_for_status(resp)
+                case = json.loads(resp.text)
+
+            # does the test exist in the results table?
+            params = {
+                'run': self._run_id,
+                'case': case['id']
+            }
+            if self.debug:
+                self.stream.writeln('Querying %s for %s' % (self.results_url, params))
+            resp = self.session.get(self.results_url, params=params)
+            self.raise_for_status(resp)
+            if self.debug:
+                self.stream.writeln('Found %s' % json.loads(resp.text))
+            try:
+                result = json.loads(resp.text)[0]
+                if self.debug:
+                    self.stream.writeln('Updating %s' % result)
+            except IndexError:
+                # Add a result for each of the tests
+                data = {
+                    'owner': self.user_url,
+                    'case': case['url'],
+                    'run': self._run_url,
+                    'status': 'exists'
+                }
+                if self.debug:
+                    self.stream.writeln('Adding result for %s' % data)
+                resp = self.session.post(self.results_url, data=data)
+                self.raise_for_status(resp)
+                result = json.loads(resp.text)
+
+            self._existing_tests[test.id()] = {
+                'case_url': case['url'],
+                'case_id': case['id'],
+                'result_url': result['url'],
+                'result_id': result['id']
+            }
+        if self.debug:
+            self.stream.writeln('%s' % self._existing_tests)
+
+        # create a database of existing fixtures
+        resp = self.session.get(self.cases_url, params={
+                'project': self.project_id,
+                'fixture': True
+            })
+        self.raise_for_status(resp)
+        for fixture in json.loads(resp.text):
+            self._existing_fixtures[fixture['name']] = {'case_url': fixture['url']}
 
     def buildTags(self):
         # gather known tags for this project
@@ -201,10 +246,10 @@ class WRTClient(object):
         self.raise_for_status(resp)
         runs = [run for run in json.loads(resp.text) if run['status'] != 'inprogress']
         runs = sorted(runs, key=lambda k: k['start_time'], reverse=True)
-        return runs[0]['id']
+        return runs[0]['url']
 
     def failing(self, include_exists=True):
-        previous_run_id = self.getPreviousTestRun()
+        previous_run_id = self.id_from_url(self.getPreviousTestRun())
         params = {'run': previous_run_id}
         if self.debug:
             self.stream.writeln('%s %s' % (self.results_url, params))
@@ -221,26 +266,37 @@ class WRTClient(object):
                 failing.append(json.loads(resp.text)['name'])
         return failing
 
-    def startTestRun(self, timestamp=time.time()):
-        tag_list = self.buildTags()
-
-        # create the run
-        data = {
-            'project': self.project_url,
-            'owner': self.user_url,
-            'start_time': self.format_time(timestamp),
-            'status': 'inprogress',
-            'tags': tag_list
-        }
-        if self.debug:
-            self.stream.writeln('Creating run %s' % data)
-        resp = self.session.post(self.runs_url, data=data)
-        self.raise_for_status(resp)
-        self._run_url = json.loads(resp.text)['url']
+    # methods for run
+    def startTestRun(self, timestamp=None):
+        if self._run_url == 'previous':
+            self._run_url = self.getPreviousTestRun()
+        elif self._run_url:
+            # re-start the run
+            resp = self.session.post(self.runs_url, data={
+                'status': 'inprogress',
+                'owner': self.user_url,
+                'project': self.project_url,
+            })
+            self.raise_for_status(resp)
+        else:
+            # create the run
+            data = {
+                'project': self.project_url,
+                'owner': self.user_url,
+                'start_time': timestamp,
+                'status': 'inprogress',
+                'tags': self.buildTags()
+            }
+            if self.debug:
+                self.stream.writeln('Creating run %s' % data)
+            resp = self.session.post(self.runs_url, data=data)
+            self.raise_for_status(resp)
+            self._run_url = json.loads(resp.text)['url']
+        self._run_id = self.id_from_url(self._run_url)
 
     def stopTestRun(self, **kwargs):
-        timestamp = kwargs.pop('timestamp', time.time())
-        kwargs['end_time'] = self.format_time(timestamp)
+        timestamp = kwargs.pop('timestamp', None)
+        kwargs['end_time'] = timestamp
         kwargs['owner'] = self.user_url
         kwargs['project'] = self.project_url
         if self.debug:
@@ -248,86 +304,82 @@ class WRTClient(object):
         resp = self.session.put(self._run_url, data=kwargs)
         self.raise_for_status(resp)
 
-    def startTest(self, test, timestamp=time.time()):
-        url = self._existing_tests[test.id()][1]
+    # methods for tests
+    def startTest(self, test, timestamp=None):
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
-            'start_time': self.format_time(timestamp),
+            'start_time': timestamp,
             'status': 'inprogress',
         }
         if self.debug:
-            self.stream.writeln('Starting test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Starting test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
     def passTest(self, test):
-        url = self._existing_tests[test.id()][1]
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'pass',
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
         if self.debug:
-            self.stream.writeln('Passing test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Passing test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
-    def failTest(self, test, err, details):
-        url = self._existing_tests[test.id()][1]
+    def failTest(self, test, err, details, reason):
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'fail',
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
+            'reason': reason,
         }
-        if self.debug:
-            self.stream.writeln('Failing test %s %s' % (url, data))
-        if err:
-            data['reason'] = err[1].__class__.__name__
-        elif 'reason' in details:
-            data['reason'] = details.pop('reason').as_text()
         # TODO: handle details
         if self.debug:
-            self.stream.writeln('Failing test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Failing test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
     def skipTest(self, test, reason):
-        url = self._existing_tests[test.id()][1]
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'skip',
             'reason': reason,
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
         if self.debug:
-            self.stream.writeln('Skipping test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Skipping test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
     def xpassTest(self, test, details):
-        url = self._existing_tests[test.id()][1]
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'xpass',
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
         if self.debug:
-            self.stream.writeln('xPassing test %s %s' % (url, data))
+            self.stream.writeln('xPassing test %s %s' % (result_url, data))
         # TODO: handle details
-        resp = self.session.put(url, data=data)
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
     def xfailTest(self, test, err, details):
-        url = self._existing_tests[test.id()][1]
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'xfail',
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
@@ -337,36 +389,109 @@ class WRTClient(object):
             data['reason'] = details.pop('reason').as_text()
         # TODO: handle details
         if self.debug:
-            self.stream.writeln('xFailing test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('xFailing test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
     def abortTest(self, test, reason=None):
         """Used by suite if aborting run-in-progress."""
-        url = self._existing_tests[test.id()][1]
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'aborted',
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
         if reason:
             data['reason'] = reason
         if self.debug:
-            self.stream.writeln('Aborting test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Aborting test %s %s' % (result_url, data))
+        resp = self.session.put( result_url, data=data)
         self.raise_for_status(resp)
 
-    def stopTest(self, test, timestamp=time.time(), duration=None):
-        url = self._existing_tests[test.id()][1]
+    def stopTest(self, test, timestamp=None, duration=None):
+        result_url = self._existing_tests[test.id()]['result_url']
         data = {
-            'end_time': self.format_time(timestamp),
+            'end_time': timestamp,
             'duration': duration,
-            'case': self._existing_tests[test.id()][0],
+            'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
         }
         if self.debug:
-            self.stream.writeln('Stopping test %s %s' % (url, data))
-        resp = self.session.put(url, data=data)
+            self.stream.writeln('Stopping test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    # methods for fixtures
+    def startFixture(self, fixture, timestamp):
+        try:
+            case_url = self._existing_tests[fixture.id()]['case_url']
+        except KeyError:
+            data = {
+                'name': fixture.id(),
+                'project': self.project_url,
+                'fixture': True,
+            }
+            if self.debug:
+                self.stream.writeln('Adding case for fixture %s' % data)
+            resp = self.session.post(self.cases_url, data=data)
+            self.raise_for_status(resp)
+            case_url = json.loads(resp.text)['url']
+            self._existing_fixtures[fixture.id()] = {'case_url': case_url}
+        # always create a new result
+        data = {
+            'case': case_url,
+            'run': self._run_url,
+            'owner': self.user_url,
+            'start_time': timestamp,
+            'status': 'inprogress',
+        }
+        if self.debug:
+            self.stream.writeln('Starting fixture %s %s' % (fixture.id(), data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+        self._existing_fixtures[fixture.id()]['result_url'] = json.loads(resp.text)['url']
+
+    def passFixture(self, fixture):
+        result_url = self._existing_fixtures[fixture.id()]['result_url']
+        data = {
+            'status': 'pass',
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+        }
+        if self.debug:
+            self.stream.writeln('Passing fixture %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    def failFixture(self, fixture, err, details, reason):
+        result_url = self._existing_fixtures[fixture.id()]['result_url']
+        data = {
+            'status': 'fail',
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+            'reason': reason,
+        }
+        # TODO: handle details
+        if self.debug:
+            self.stream.writeln('Failing fixture %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    def stopFixture(self, fixture, timestamp, duration=None):
+        # get rid of the result_url when done with this method
+        result_url = self._existing_fixtures[fixture.id()].pop('result_url')
+        data = {
+            'end_time': timestamp,
+            'duration': duration,
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+        }
+        if self.debug:
+            self.stream.writeln('Stopping fixture %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)

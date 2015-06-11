@@ -4,6 +4,7 @@ SERVER: <ip:[port]>
 USERNAME: <username>
 PASSWORD: <password>
 PROJECT_NAME: <name>
+PROTOCOL: http[s]
 
 # provide labels and shell commands that output the values
 [tags]

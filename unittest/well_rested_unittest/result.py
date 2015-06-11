@@ -4,19 +4,51 @@ import requests
 import sys
 import os
 import time
+import datetime
 import argparse
 import wrtclient
+import json
+import shutil
+from threading import Lock
+try:
+    from blessings import Terminal
+except ImportError:
+    Terminal = None
 
 __unittest = True
 
-EARLY = -1
-LATE = 1
+
+class ColorizedWritelnDecorator(object):
+    """Used to decorate file-like objects with a handy 'writeln' method"""
+    def __init__(self, stream):
+        self.stream = stream
+        self.color = None
+        self.terminal = Terminal(stream=stream)
+
+    def __getattr__(self, attr):
+        if attr in ('stream', '__getstate__', 'set_color', 'write'):
+            raise AttributeError(attr)
+        return getattr(self.stream, attr)
+
+    def writeln(self, arg=None):
+        if arg:
+            self.write(arg)
+        self.write('\n') # text-mode streams translate to \r\n if needed
+
+    def write(self, arg):
+        if arg and arg != '\n':
+            self.stream.write(self.terminal.color(self.color))
+            self.stream.write(arg)
+            self.stream.write(self.terminal.normal)
+        elif arg == '\n':
+            self.stream.write(arg)
+
+    def set_color(self, color):
+        self.color = color
 
 
 class WellRestedTestResult(
     testtools.TestResult, unittest2.TextTestResult):
-    # TODO: abort on too many fixture warnings:infos
-    # TODO: abort on too many test failures/errors
     """
     Uploads test runs / cases to a well-rested-tests server.
 
@@ -39,84 +71,120 @@ class WellRestedTestResult(
         group.add_argument('-f', '--failfast', dest='failfast',
                            action='store_true',
                            help='Stop on first fail or error')
+        group.add_argument('-a', '--abort-on-fixture-fail-percent',
+                           dest='fail_percent', default=0,
+                           help="Abort test run if this percentage of tests "
+                                "have failed due to fixture failure.")
         group.add_argument('-x', '--uxsuccess-not-failure',
                            dest='uxsuccess_not_failure',
                            action='store_true',
                            help="Consider unexpected success a failure "
                                 "(default True).")
-        group.add_argument('-d', '--dots', dest='verbosity',
-                           action='store_const', const=1,
-                           help='print dots (default)')
-        group.add_argument('-r', '--reason-only', dest='verbosity',
-                           action='store_const', const=2,
-                           help='Output with reasons')
-        group.add_argument('-v', '--verbose', dest='verbosity',
-                           action='store_const', const=3,
-                           help='Verbose output')
-        # quiet is verbosity = -1 rather than zero so that it is truthy
+        # verbosity options
+        # (quiet is verbosity = -1 rather than zero so that it is truthy)
         group.add_argument('-q', '--quiet', dest='verbosity',
                            action='store_const', const=-1,
                            help='Silent output')
-        group.add_argument('-l', '--late-printing', dest='printing',
-                           action='store_const', const=LATE,
-                           help="don't print test starts")
-        group.add_argument('-e', '--early-printing', dest='printing',
-                           action='store_const', const=EARLY,
-                           help="print details immediately, "
-                                "(overrides -q and -d)")
+        group.add_argument('-d', '--dots', dest='verbosity',
+                           action='store_const', const=1,
+                           help='print dots (default)')
+        group.add_argument('-v', '--verbose', dest='verbosity',
+                           action='store_const', const=2,
+                           help='Verbose output')
+        group.add_argument('-e', '--early-details', dest='verbosity',
+                           action='store_const', const=3,
+                           help="Print details immediately.")
+
+        group.add_argument('--color', dest='color', action='store_true',
+                           help='Colorize parallel result output (default False).')
+        group.add_argument('--run-url', dest='run_url', action='store',
+                           default=None,
+                           help='URL of run to be updated (default None).')
+        group.add_argument('--timestamp', dest='timestamp', action='store_true',
+                           help='Include test start-time in output (default False).')
+        group.add_argument('--update', dest='update', action='store_true',
+                           help="Update previous test run (default False).")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
                            help='path to well-rested-tests config file')
-        group.add_argument('--failing-file', dest='failing_file',
-                           default='.failing',
-                           help='path to file used to store failed tests'
-                                '(default .failing)')
         return parser
 
     @staticmethod
     def factory(cls, object):
         return cls(
-            failfast=object.failfast or False,
-            uxsuccess_not_failure=object.uxsuccess_not_failure or False,
-            verbosity=object.verbosity or 1,
-            printing=object.printing or 0,
-            failing_file=object.failing_file or '.failing',
-            wrt_conf=object.wrt_conf or None)
+            failfast=object.failfast if hasattr(object, 'failfast') else False,
+            uxsuccess_not_failure=object.uxsuccess_not_failure if
+                hasattr(object, 'uxsuccess_not_failure') else False,
+            verbosity=object.verbosity if hasattr(object, 'verbosity') else 1,
+            failing_file=object.failing_file if
+                hasattr(object, 'failing_file') else '.failing',
+            wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
+            progName=object.progName,
+            color=object.color if hasattr(object, 'color') else False,
+            update=object.update if hasattr(object, 'update') else False,
+            timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
+            run_url=object.run_url if hasattr(object, 'run_url') else None,
+            fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
+        )
 
     @staticmethod
     def expectedHelpText(cls):
         return """
 %s:
   -f, --failfast        Stop on first fail or error
+  -a FAIL_PERCENT, --abort-on-fixture-fail-percent FAIL_PERCENT
+                        Abort test run if this percentage of tests have failed
+                        due to fixture failure.
   -x, --uxsuccess-not-failure
                         Consider unexpected success a failure (default True).
-  -d, --dots            print dots (default)
-  -r, --reason-only     Output with reasons
-  -v, --verbose         Verbose output
   -q, --quiet           Silent output
-  -l, --late-printing   don't print test starts
-  -e, --early-printing  print details immediately, (overrides -q and -d)
+  -d, --dots            print dots (default)
+  -v, --verbose         Verbose output
+  -e, --early-details   Print details immediately.
+  --color               Colorize parallel result output (default False).
+  --run-url RUN_URL     URL of run to be updated (default None).
+  --timestamp           Include test start-time in output (default False).
+  --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
                         path to well-rested-tests config file
 """ % cls.__name__
 
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
-                 printing=0, failing_file='.failing', wrt_conf=None):
+                 failing_file='.failing',
+                 wrt_conf=None, progName=None, color=False,
+                 update=False, timestamp=False, run_url=None,
+                 fail_percent=0):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
         :param verbosity: 0 (none, default), 1 (dots),
-                          >1 (reason only), >2 (verbose),
-                          will be set to 0 if stream is None
-        :param printing: -1 (early), 0 (default), 1 (late)
+                          2 (verbose), 3 (early-details)
         :param wrt_conf: path to well-rested-tests config file
+        :param progName: so the suite can find out what program name to use for parallelization
+        :param color:    boolean (default False) color parallel output streams
+        :param update:   boolean (default False) update previous test run
+                         Note: update is not needed by workers.
+        :param timestamp: Include test start-time in output.
+        :param run_url:   URL of run to be updated.
+        :param fail_percent:
         :return:
         """
+        # some initial processing
+        self.worker = os.getenv('WRT_WORKER_ID', None)
+        self.color = color
+        if self.color and not Terminal:
+            sys.stderr.write('WARNING: Package `blessings` not installed. '
+                             'Results will not be colorized.\n')
+            self.color = False
+        if self.color and self.worker:
+            self.stream = ColorizedWritelnDecorator(sys.stderr)
+        else:
+            self.stream = unittest2.runner._WritelnDecorator(sys.stderr)
+
         # initialize all the things
         self.warnings = []
         self.infos = []
         self.fixtures = 0
-        self.stream = unittest2.runner._WritelnDecorator(sys.stderr)
         self.skip_reasons = {}
         self.__now = None
         self._tags = testtools.tags.TagContext()
@@ -125,29 +193,68 @@ class WellRestedTestResult(
         self.reasons = {}
         self.start_time = None
         self.end_time = None
-        self.test_start_time = None
-        self.test_end_time = None
+        self.test_start_time = {}
+        self.test_end_time = {}
+        self.test_result = {}
         self._detail = ""
         self._test_run = None
         self.wrt_conf = None
         self.wrt_client = None
+        self.progName = progName
+        self.absorbLock = Lock()
+        self._expected_tests = 0
 
+        # super
         unittest2.TextTestResult.__init__(self, self.stream, False, verbosity)
 
-        # set the settings
+        # process the settings
         self.failfast = failfast
+        self.fail_percent = int(fail_percent)
         self.uxsuccess_not_failure = uxsuccess_not_failure
         self.failing_file = failing_file
+        # worker (ie, parallel) set color and failing_file
+        if self.worker:
+            self.worker = int(self.worker)
+            if self.color:
+                self.stream.set_color(self.worker)
+            if failing_file:
+                self.failing_file += str(self.worker)
+        self.early_details = verbosity > 2
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
-        self.printing = printing
-        # EARLY overrides -q and -d
-        if self.printing == EARLY:
-            self.showAll = True
+        self.update = update
+        if self.update and not run_url:
+            run_url = 'previous'
+        self.timestamp = timestamp
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
-                wrt_conf, self.stream, debug=False)
+                wrt_conf, self.stream, debug=False, run_url=run_url)
+
+    def worker_flags(self):
+        """The suite shouldn't need to know what the flags are."""
+        flags = []
+
+        if self.dots:
+            flags.append('--dots')
+        elif self.early_details:
+            flags.append('--early-details')
+        elif self.showAll:
+            flags.append('-v')
+        else:
+            flags.append('-q')
+
+        if self.color:
+            flags.append('--color')
+        if self.timestamp:
+            flags.append('--timestamp')
+        if self.fail_percent:
+            flags.append('-a %s' % self.fail_percent)
+        if self.wrt_conf:
+            flags.extend([
+                '--wrt-conf %s' % self.wrt_conf,
+                '--run-url %s' % self.wrt_client._run_url])
+        return flags
 
     def _err_details_to_string(self, test, err=None, details=None):
         """Convert an error in exc_info form or a contents dict to a string."""
@@ -157,6 +264,8 @@ class WellRestedTestResult(
         return _details_to_str(details, special='traceback')
 
     def _process_reason(self, test, details):
+        # TODO: also process err, make it into a detail, and assign reason
+        # TODO:  (maybe not here)
         reason = None
         if details and 'reason' in details:
             reason = details.pop('reason').as_text()
@@ -166,76 +275,141 @@ class WellRestedTestResult(
                 self.reasons[reason] += 1
         return reason
 
+    def format_time(self, timestamp):
+        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
+
     # run related methods
+    def registerTests(self, tests):
+        filtered_tests = [test for test in tests
+                          if isinstance(test, unittest2.TestCase)]
+        self._expected_tests = len(filtered_tests)
+        if self.wrt_conf:
+            self.wrt_client.registerTests(filtered_tests)
+
     def startTestRun(self):
         self.start_time = time.time()
-        if self.wrt_client:
+        if self.showAll and not self.worker:
+            self.stream.writeln(self.separator2)
+        if self.wrt_client and not self.worker:
             try:
                 self.wrt_client.startTestRun(
-                    timestamp=self.start_time)
+                    timestamp=self.format_time(self.start_time))
             except requests.exceptions.ConnectionError as e:
                 self.stream.writeln(
                     'ERROR: Unable to connect to the well-rested-tests server\n%s'
                     % e.message)
                 exit(1)
-        if self.failing_file and self.failing_file != self.wrt_conf:
+        if self.failing_file:
+            mode = 'ab' if self.update else 'wb'
             self.failing_file = unittest2.runner._WritelnDecorator(
-                open(self.failing_file, 'wb'))
+                open(self.failing_file, mode))
+        if self.showAll and self.wrt_client and not self.worker:
+            self.stream.writeln("Watch progress at: %s" % self.wrt_client._run_url)
+            self.stream.writeln(self.separator2)
         unittest2.TextTestResult.startTestRun(self)
 
-    def stopTestRun(self):
+    def stopTestRun(self, abort=False):
         self.end_time = time.time()
-        if self.wasSuccessful():
+        elapsed_time = self.end_time - self.start_time
+        if abort:
+            status='aborted'
+        elif self.wasSuccessful():
             status='pass'
         else:
             status='fail'
-        if self.wrt_client:
+        if self.wrt_client and not self.worker:
             self.wrt_client.stopTestRun(
-                timestamp=self.end_time,
-                duration=self.end_time - self.start_time,
-                status=status,
-                tests_run=self.testsRun,
-                failures=len(self.failures),
-                errors=len(self.errors),
-                skips=len(self.skipped),
-                xpasses=len(self.unexpectedSuccesses),
-                xfails=len(self.expectedFailures))
+                timestamp=self.format_time(self.end_time),
+                status=status)
         testtools.TestResult.stopTestRun(self)
-        if self.failing_file and self.failing_file != self.wrt_conf:
+        if self.failing_file:
             self.failing_file.close()
-        if self.dots or self.showAll:
-            self.printErrors()
-            self.printSummary()
+            if status == 'aborted':
+                with open('%s.bak' % self.failing_file, 'rb') as src:
+                    shutil.copyfileobj(src, self.failing_file)
+        # if we're a worker, print the sumarizing stuff to
+        # stdout instead of stderr
+        if self.worker:
+            output = json.dumps({
+                'duration': elapsed_time,
+                'failures': self.failures,
+                'errors': self.errors,
+                'skipped': self.skipped,
+                'unexpectedSuccesses': self.unexpectedSuccesses,
+                'expectedFailures': self.expectedFailures,
+                'infos': self.infos,
+                'warnings': self.warnings,
+                'testsRun': self.testsRun,
+                'fixtures': self.fixtures,
+                'worker': self.worker,
+            }, sort_keys=True, indent=4, separators=(',', ': '))
+            with open('.worker%s' % self.worker, 'wb') as f:
+                f.write(output + '\n')
+        elif self.dots or self.showAll:
+                self.printErrors()
+                self.printSummary()
+
+    def absorbResult(self, stdout):
+        with self.absorbLock:
+            try:
+                other_result = json.loads(stdout)
+            except ValueError:
+                self.stream.writeln(stdout)
+                raise
+            self.failures.extend(other_result['failures'])
+            self.errors.extend(other_result['errors'])
+            self.skipped.extend(other_result['skipped'])
+            self.unexpectedSuccesses.extend(other_result['unexpectedSuccesses'])
+            self.expectedFailures.extend(other_result['expectedFailures'])
+            self.testsRun += other_result['testsRun']
+            self.infos.extend(other_result['infos'])
+            self.warnings.extend(other_result['warnings'])
+            self.fixtures += other_result['fixtures']
+            if self.failing_file:
+                with open('.failing%s' % other_result['worker']) as src:
+                    shutil.copyfileobj(src, self.failing_file)
 
     # test related methods
     def getDescription(self, test):
         """Let's not use docstrings as test names"""
-        return str(test)
+        output = ''
+        if self.worker:
+            output = output + '(%s) ' % self.worker
+        output = output + (test.id() if hasattr(test, 'id') else str(test))
+        return output
 
     def startTest(self, test):
-        self.test_start_time = time.time()
+        if not isinstance(test, unittest2.TestCase):
+            return
+        self.test_start_time[test.id()] = time.time()
         if self.wrt_client:
-            self.wrt_client.startTest(test, timestamp=self.test_start_time)
-        if not self.printing == LATE:
-            testtools.TestResult.startTest(self, test)
+            self.wrt_client.startTest(
+                test, timestamp=self.format_time(self.test_start_time[test.id()]))
+        if self.showAll:
+            if self.timestamp:
+                self.stream.write(self.format_time(self.test_start_time[test.id()]) + ' ')
+            self.stream.write('%s ... ' % self.getDescription(test))
+        unittest2.TestResult.startTest(self, test)
 
     def stopTest(self, test):
         """also print out test duration"""
-        self.test_end_time = time.time()
-        if self.printing == LATE:
-            testtools.TestResult.startTest(self, test)
+        if not isinstance(test, unittest2.TestCase):
+            return
+        self.test_end_time[test.id()] = time.time()
+        elapsed_time = self.test_end_time[test.id()] - self.test_start_time[test.id()]
         if self.showAll:
-            self.stream.writeln(" in %.3f" % (self.test_end_time - self.test_start_time))
-        if self.printing == EARLY:
+            self.stream.writeln(" in %.3f" % elapsed_time)
+        if self.early_details:
             if self._detail:
                 self.stream.writeln(self.separator1)
                 self.stream.writeln(self._detail)
                 self.stream.writeln(self.separator2)
                 self._detail = ""
         if self.wrt_client:
-            self.wrt_client.stopTest(test, timestamp=self.test_end_time,
-                                     duration=(self.test_end_time - self.test_start_time))
-        testtools.TestResult.stopTest(self, test)
+            self.wrt_client.stopTest(
+                test, timestamp=self.format_time(self.test_end_time[test.id()]),
+                duration=elapsed_time)
+        unittest2.TestResult.stopTest(self, test)
 
     def addExpectedFailure(self, test, err=None, details=None):
         if self.wrt_client:
@@ -245,13 +419,13 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write("x")
             self.stream.flush()
-        testtools.TestResult.addExpectedFailure(
-            self, test, err, details)
+        details = self._err_details_to_string(test, err, details)
+        self.expectedFailures.append((self.getDescription(test), details))
 
     def addError(self, test, err=None, details=None):
-        if self.wrt_client:
-            self.wrt_client.failTest(test, err, details)
         reason = self._process_reason(test, details)
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
             self.stream.write("ERROR")
             if reason:
@@ -262,11 +436,18 @@ class WellRestedTestResult(
         self.print_or_append(test, err, details, self.errors)
         if self.failfast:
             self.stop()
+        # this isn't my favorite place to put this, but i can't override
+        # self.shouldStop with @property shouldStop.
+        elif self.fail_percent and self._expected_tests and \
+                'Error handling fixtures' in self.reasons:
+            if self.reasons['Error handling fixtures'] > (
+                    self._expected_tests * (self.fail_percent / 100)):
+                self.stop()
 
     def addFailure(self, test, err=None, details=None):
-        if self.wrt_client:
-            self.wrt_client.failTest(test, err, details)
         reason = self._process_reason(test, details)
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
             self.stream.write("FAIL")
             if reason:
@@ -280,7 +461,7 @@ class WellRestedTestResult(
 
     def addSkip(self, test, reason=None, details=None):
         if reason is None:
-            reason = details.get('reason')
+            reason = details.get('reason', None)
             if reason is None:
                 reason = 'No reason given'
             else:
@@ -293,7 +474,7 @@ class WellRestedTestResult(
             self.stream.write("s")
             self.stream.flush()
         # testtools does it strangely. do it less strangely
-        self.skipped.append((test, reason))
+        self.skipped.append((self.getDescription(test), reason))
 
     def addSuccess(self, test, details=None):
         if self.wrt_client:
@@ -312,62 +493,72 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write("u")
             self.stream.flush()
-        self.unexpectedSuccesses.append(test)
+        self.unexpectedSuccesses.append(self.getDescription(test))
 
     # fixture related methods
     def startFixture(self, fixture):
         self.fixtures += 1
-        self.test_start_time = time.time()
-        # update well-rested-tests with in-progress state and start time
-        if not self.printing == LATE:
-            if self.showAll:
-                self.stream.write(str(fixture))
-                self.stream.write(" ... ")
+        fix_id = fixture.id()
+        self.test_start_time[fix_id] = time.time()
+        if self.wrt_conf:
+            self.wrt_client.startFixture(
+                fixture, self.format_time(self.test_start_time[fixture.id()]))
+        if self.showAll:
+            if self.timestamp:
+                self.stream.write(self.format_time(self.test_start_time[fix_id]) + ' ')
+            self.stream.write("%s ... " % self.getDescription(fixture))
 
     def stopFixture(self, fixture):
-        """also print out test duration"""
-        self.test_end_time = time.time()
+        fix_id = fixture.id()
+        self.test_end_time[fix_id] = time.time()
+        elapsed_time = self.test_end_time[fix_id] - self.test_start_time[fix_id]
+        if self.wrt_conf:
+            self.wrt_client.stopFixture(
+                fixture, self.format_time(self.test_end_time[fixture.id()]), elapsed_time)
         if self.showAll:
-            self.stream.writeln(" in %.3f" % (self.test_end_time - self.test_start_time))
-        if self.printing == EARLY:
+            self.stream.writeln(" in %.3f" % elapsed_time)
+        if self.early_details:
             if self._detail:
                 self.stream.writeln(self.separator1)
                 self.stream.writeln(self._detail)
                 self.stream.writeln(self.separator2)
                 self._detail = ""
-        # update well-rested-tests with end time
 
     def addWarning(self, fixture, err=None, details=None):
         """
         Use this method if you'd like to print a fixture warning
         without having it effect the outcome of the test run.
         """
-        # upload to well-rested-tests
+        reason = None
+        if details and 'reason' in details:
+            reason = details.pop('reason').as_text()
+            if reason not in self.reasons:
+                self.reasons[reason] = 1
+            else:
+                self.reasons[reason] += 1
+        if self.wrt_conf:
+            self.wrt_client.failFixture(fixture, err, details, reason)
         if self.showAll:
-            if self.printing == LATE:
-                self.stream.write(str(fixture))
-                self.stream.write(" ... ")
             self.stream.write("warning")
-            if details and 'reason' in details:
-                reason = details.pop('reason').as_text()
+            if reason:
                 self.stream.write(' %s ' % reason)
-                if reason not in self.reasons:
-                    self.reasons[reason] = 1
-                else:
-                    self.reasons[reason] += 1
+        elif self.dots:
+            self.stream.write('w')
+            self.stream.flush()
         self.print_or_append(fixture, err, details, self.warnings)
 
     def addInfo(self, fixture):
         """
         Use this method if you'd like to print a fixture success.
         """
-        # upload to well-rested-tests
+        if self.wrt_conf:
+            self.wrt_client.passFixture(fixture)
         if self.showAll:
-            if self.printing == LATE:
-                self.stream.write(str(fixture))
-                self.stream.write(" ... ")
             self.stream.write("ok")
-        self.infos.append(fixture)
+        elif self.dots:
+            self.stream.write(',')
+            self.stream.flush()
+        self.infos.append(self.getDescription(fixture))
 
     # summarizing methods
     def wasSuccessful(self):
@@ -384,28 +575,33 @@ class WellRestedTestResult(
 
     def print_or_append(self, test, err, details, list):
         details = self._err_details_to_string(test, err, details)
-        if self.failing_file and self.failing_file != self.wrt_conf:
+        if self.failing_file:
             if hasattr(test, 'id'):
                 writable = test.id()
             else:
                 writable = test
             self.failing_file.writeln(writable)
-        if self.printing == EARLY:
-            list.append(test)
+        description = self.getDescription(test)
+        if self.early_details:
+            list.append(description)
             self._detail = details
         else:
-            list.append((test, details))
+            list.append((description, details))
 
     def printErrors(self):
         if self.dots or self.showAll:
             self.stream.writeln()
-        if self.printing != EARLY:
+        if not self.early_details:
             self.printErrorList('WARNING', self.warnings)
             self.printErrorList('ERROR', self.errors)
             self.printErrorList('FAIL', self.failures)
 
     def printErrorList(self, flavour, errors):
-        unittest2.TextTestResult.printErrorList(self, flavour, errors)
+        for test, err in errors:
+            self.stream.writeln(self.separator1)
+            self.stream.writeln("%s: %s" % (flavour, test))
+            self.stream.writeln(self.separator2)
+            self.stream.writeln("%s" % err)
 
     def printSummary(self):
         self.stream.writeln(self.formatSummary())
@@ -451,5 +647,7 @@ class WellRestedTestResult(
             summary.append(" (%s)" % (", ".join(reasons)))
         if infos:
             summary.append(" (%s)\n" % (", ".join(infos),))
+        if self.wrt_conf:
+            summary.append(self.wrt_client._run_url)
         return "\n".join(summary)
 

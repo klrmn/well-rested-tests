@@ -13,6 +13,7 @@ class ExampleException(Exception):
 class TestWellRestedTestResult(unittest2.TestCase):
 
     maxDiff = None
+    concurrency = 4
 
     _err = None
     _details = None
@@ -69,49 +70,86 @@ class TestWellRestedTestResult(unittest2.TestCase):
 
     def test_output_verbose(self):
         result = well_rested_unittest.WellRestedTestResult(
-            verbosity=3)
-        self.assertEqual(result.showAll, True)
-        self.assertEqual(result.dots, False)
+            verbosity=2)
+        self.assertTrue(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertFalse(result.early_details)
 
     def test_output_default(self):
         result = well_rested_unittest.WellRestedTestResult()
-        self.assertEqual(result.showAll, False)
-        self.assertEqual(result.dots, True)
+        self.assertFalse(result.showAll)
+        self.assertTrue(result.dots)
+        self.assertFalse(result.early_details)
 
     def test_output_quiet(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=0)
-        self.assertEqual(result.showAll, False)
-        self.assertEqual(result.dots, False)
+        self.assertFalse(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertFalse(result.early_details)
+
+    def test_output_early_details(self):
+        result = well_rested_unittest.WellRestedTestResult(
+            verbosity=3)
+        self.assertTrue(result.showAll)
+        self.assertFalse(result.dots)
+        self.assertTrue(result.early_details)
 
     def test_startTestRun_stopTestRun(self):
         result = well_rested_unittest.WellRestedTestResult(
             verbosity=0, failing_file="")
             # you'll want this one for debugging
             # verbosity=2, failing_file="", printing=well_rested_unittest.result.EARLY)
+
+        class DummyTestClass(unittest2.TestCase):
+            def test9(self):
+                pass
+
+            def test10(self):
+                pass
+
+            def test11(self):
+                pass
+
+            def test12(self):
+                pass
+
+            def test13(self):
+                pass
+
+            def test14(self):
+                pass
+
+
         result.startTestRun()
-        self.assertIsNone(result.test_start_time)
-        self.assertIsNone(result.test_end_time)
-        result.startTest('test9')
-        result.addFailure('test9', err=self.err)
-        result.stopTest('test9')
-        self.assertIsNotNone(result.test_start_time)
-        self.assertIsNotNone(result.test_end_time)
-        result.startTest('test10')
-        result.addSuccess('test10', details=self.details)
-        result.stopTest('test10')
-        result.startTest('test11')
-        result.addExpectedFailure('test11', err=self.err)
-        result.stopTest('test11')
-        result.startTest('test12')
-        result.addUnexpectedSuccess('test12', details=self.details)
-        result.stopTest('test12')
-        result.startTest('test13')
-        result.addFailure('test13', details=self.details)
-        result.stopTest('test13')
-        result.startTest('test14')
-        result.addSkip('test14', 'blah')
-        result.stopTest('test14')
+        self.assertEqual(result.test_start_time, {})
+        self.assertEqual(result.test_end_time, {})
+        result.startTest(DummyTestClass(methodName='test9'))
+        result.addFailure(DummyTestClass(methodName='test9'),
+                          err=self.err)
+        result.stopTest(DummyTestClass(methodName='test9'))
+        self.assertTrue(result.test_start_time['tests.test_result.DummyTestClass.test9'])
+        self.assertTrue(result.test_end_time['tests.test_result.DummyTestClass.test9'])
+        result.startTest(DummyTestClass(methodName='test10'))
+        result.addSuccess(DummyTestClass(methodName='test10'),
+                          details=self.details)
+        result.stopTest(DummyTestClass(methodName='test10'))
+        result.startTest(DummyTestClass(methodName='test11'))
+        result.addExpectedFailure(DummyTestClass(methodName='test11'),
+                                  err=self.err)
+        result.stopTest(DummyTestClass(methodName='test11'))
+        result.startTest(DummyTestClass(methodName='test12'))
+        result.addUnexpectedSuccess(DummyTestClass(methodName='test12'),
+                                    details=self.details)
+        result.stopTest(DummyTestClass(methodName='test12'))
+        result.startTest(DummyTestClass(methodName='test13'))
+        result.addFailure(DummyTestClass(methodName='test13'),
+                          details=self.details)
+        result.stopTest(DummyTestClass(methodName='test13'))
+        result.startTest(DummyTestClass(methodName='test14'))
+        result.addSkip(DummyTestClass(methodName='test14'),
+                       'blah')
+        result.stopTest(DummyTestClass(methodName='test14'))
         result.stopTestRun()
         self.assertIsNotNone(result.start_time)
         self.assertIsNotNone(result.end_time)

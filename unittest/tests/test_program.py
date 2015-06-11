@@ -1,54 +1,56 @@
 import sys
 import unittest2
 import subprocess
-from well_rested_unittest import FullyConfigurableTestProgram, \
-                                 OutputDelegatingTestRunner, \
-                                 AutoDiscoveringTestLoader, \
-                                 WellRestedTestResult, \
-                                 ErrorTolerantOptimisedTestSuite
+import well_rested_unittest
 
 
-class NewRunner(OutputDelegatingTestRunner):
+class NewRunner(well_rested_unittest.OutputDelegatingTestRunner):
     pass
 
 
-class NewLoader(AutoDiscoveringTestLoader):
+class NewLoader(well_rested_unittest.AutoDiscoveringTestLoader):
     pass
 
 
-class NewResult(WellRestedTestResult):
+class NewResult(well_rested_unittest.WellRestedTestResult):
     pass
 
 
-class NewSuite(unittest2.TestSuite):
+class NewSuite(well_rested_unittest.ErrorTolerantOptimisedTestSuite):
     pass
 
 
 class TestFullyConfigurableTestProgram(unittest2.TestCase):
 
     maxDiff = None
+    concurrency = 4
 
     def test_default_classes_no_argv(self):
-        program = FullyConfigurableTestProgram(argv=['fctest', 'sample_tests'])
-        self.assertEqual(program.suiteClass, unittest2.TestSuite)
-        self.assertTrue(isinstance(program.testLoader, AutoDiscoveringTestLoader))
-        self.assertTrue(isinstance(program.testRunner, OutputDelegatingTestRunner))
-        self.assertTrue(isinstance(program.testResult, WellRestedTestResult))
+        program = well_rested_unittest.FullyConfigurableTestProgram(
+            argv=['fctest', 'sample_tests'])
+        self.assertEqual(program.suiteClass,
+                         well_rested_unittest.ErrorTolerantOptimisedTestSuite)
+        self.assertTrue(isinstance(
+            program.testLoader, well_rested_unittest.AutoDiscoveringTestLoader))
+        self.assertTrue(isinstance(
+            program.testRunner, well_rested_unittest.OutputDelegatingTestRunner))
+        self.assertTrue(isinstance(
+            program.testResult, well_rested_unittest.WellRestedTestResult))
 
         # result gets default settings
         self.assertTrue(program.testResult.dots)
         self.assertFalse(program.testResult.showAll)
         self.assertFalse(program.testResult.failfast)
-        self.assertFalse(program.testResult.printing)
+        self.assertFalse(program.testResult.early_details)
         self.assertIsNone(program.testResult.wrt_client)
 
     def test_specific_classes_with_argv(self):
-        program = FullyConfigurableTestProgram(
+        program = well_rested_unittest.FullyConfigurableTestProgram(
             suiteClass=NewSuite,
             loaderClass=NewLoader,
             runnerClass=NewRunner,
             resultClass=NewResult,
-            argv=['fctest', '-q', '-l', '--failfast', 'sample_tests'])
+            argv=['fctest', '-q', '--failfast', 'sample_tests'])
         self.assertEqual(program.suiteClass, NewSuite)
         self.assertTrue(isinstance(program.testLoader, NewLoader))
         self.assertTrue(isinstance(program.testRunner, NewRunner))
@@ -58,11 +60,9 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         self.assertFalse(program.testResult.dots)
         self.assertFalse(program.testResult.showAll)
         self.assertTrue(program.testResult.failfast)
-        self.assertEqual(program.testResult.printing, 1)
 
     def test_help(self):
-        program = FullyConfigurableTestProgram(
-            suiteClass=ErrorTolerantOptimisedTestSuite,
+        program = well_rested_unittest.FullyConfigurableTestProgram(
             argv=['fctest', 'sample_tests'])
         help_message = program.parser.format_help()
         # sys.stderr.write(help_message)  # much easier debugging

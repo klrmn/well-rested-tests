@@ -42,6 +42,8 @@ when passed the appropriate flags, will communicate with the well-rested-tests-s
 cd well_rested_unittest
 python setup.py develop/install
 
+Note: If blessings is installed, the --color option for the results will work.
+
 ## TODO:
 * handle attachments
 * handle update existing run
@@ -62,3 +64,7 @@ python setup.py develop/install
 * the `sample_tests` directory contains a collections of tests that are
   designed to exercise various not-all-passing scenarios, and are called
   by various tests in the `tests` directory.
+* manual_test_plan.rst defines a list of tests regarding output display
+  that are better performed by hand
+* Note: If you're going to run `tests` in parallel, set --concurrency auto
+  so that the tests of parallelism are tested one-at-a-time.

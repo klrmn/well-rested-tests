@@ -1,9 +1,11 @@
 import unittest2
 import logging
-from well_rested_unittest import ResourcedTestCase
+import well_rested_unittest
 
 
-class TestResourcedTestCase(ResourcedTestCase):
+class TestResourcedTestCase(well_rested_unittest.ResourcedTestCase):
+
+    concurrency = 4
 
     def test_assert_is_int(self):
         self.assertIsInt(88)
