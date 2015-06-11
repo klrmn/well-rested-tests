@@ -49,8 +49,6 @@ class ColorizedWritelnDecorator(object):
 
 class WellRestedTestResult(
     testtools.TestResult, unittest2.TextTestResult):
-    # TODO: abort on too many fixture warnings:infos
-    # TODO: abort on too many test failures/errors
     """
     Uploads test runs / cases to a well-rested-tests server.
 
@@ -73,6 +71,10 @@ class WellRestedTestResult(
         group.add_argument('-f', '--failfast', dest='failfast',
                            action='store_true',
                            help='Stop on first fail or error')
+        group.add_argument('-a', '--abort-on-fixture-fail-percent',
+                           dest='fail_percent', default=0,
+                           help="Abort test run if this percentage of tests "
+                                "have failed due to fixture failure.")
         group.add_argument('-x', '--uxsuccess-not-failure',
                            dest='uxsuccess_not_failure',
                            action='store_true',
@@ -121,6 +123,7 @@ class WellRestedTestResult(
             update=object.update if hasattr(object, 'update') else False,
             timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
             run_url=object.run_url if hasattr(object, 'run_url') else None,
+            fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
         )
 
     @staticmethod
@@ -128,6 +131,9 @@ class WellRestedTestResult(
         return """
 %s:
   -f, --failfast        Stop on first fail or error
+  -a FAIL_PERCENT, --abort-on-fixture-fail-percent FAIL_PERCENT
+                        Abort test run if this percentage of tests have failed
+                        due to fixture failure.
   -x, --uxsuccess-not-failure
                         Consider unexpected success a failure (default True).
   -q, --quiet           Silent output
@@ -146,7 +152,8 @@ class WellRestedTestResult(
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
-                 update=False, timestamp=False, run_url=None):
+                 update=False, timestamp=False, run_url=None,
+                 fail_percent=0):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -159,6 +166,7 @@ class WellRestedTestResult(
                          Note: update is not needed by workers.
         :param timestamp: Include test start-time in output.
         :param run_url:   URL of run to be updated.
+        :param fail_percent:
         :return:
         """
         # some initial processing
@@ -201,6 +209,7 @@ class WellRestedTestResult(
 
         # process the settings
         self.failfast = failfast
+        self.fail_percent = int(fail_percent)
         self.uxsuccess_not_failure = uxsuccess_not_failure
         self.failing_file = failing_file
         # worker (ie, parallel) set color and failing_file
@@ -239,6 +248,8 @@ class WellRestedTestResult(
             flags.append('--color')
         if self.timestamp:
             flags.append('--timestamp')
+        if self.fail_percent:
+            flags.append('-a %s' % self.fail_percent)
         if self.wrt_conf:
             flags.extend([
                 '--wrt-conf %s' % self.wrt_conf,
@@ -423,6 +434,14 @@ class WellRestedTestResult(
         self.print_or_append(test, err, details, self.errors)
         if self.failfast:
             self.stop()
+        # this isn't my favorite place to put this, but i can't override
+        # self.shouldStop with @property shouldStop.
+        elif self.fail_percent and self._expected_tests and \
+                'Error handling fixtures' in self.reasons:
+            if self.reasons['Error handling fixtures'] > (
+                    self._expected_tests * (self.fail_percent / 100)):
+                self.stop()
+
 
     def addFailure(self, test, err=None, details=None):
         if self.wrt_client:
