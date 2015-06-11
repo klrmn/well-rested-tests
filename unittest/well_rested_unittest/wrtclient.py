@@ -89,7 +89,12 @@ class WRTClient(object):
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
-            self.stream.writeln(resp.text)
+            try:
+                beginning = resp.text.find('<div id="summary">')
+                end = resp.text.find('<div id="traceback">')
+                self.stream.writeln(resp.text[beginning:end])
+            except Exception:
+                self.stream.writeln(resp.text)
             raise
 
     def id_from_url(self, url):
@@ -132,42 +137,56 @@ class WRTClient(object):
     def registerTests(self, tests):
         for test in tests:
             # does the test exist in the cases table?
-            resp = self.session.get(self.cases_url, params={
+            params = {
                 'project': self.project_id,
-                'name': test.id()
-            })
+                'name': test.id(),
+                'fixture': False
+            }
+            if self.debug:
+                self.stream.writeln('Querying %s for %s' % (self.cases_url, params))
+            resp = self.session.get(self.cases_url, params=params)
             self.raise_for_status(resp)
+            if self.debug:
+                self.stream.writeln('Found %s' % json.loads(resp.text))
             try:
                 case = json.loads(resp.text)[0]
             except IndexError:
+                data = {
+                    'name': test.id(),
+                    'project': self.project_url
+                }
                 if self.debug:
-                    self.stream.writeln('Adding case for test %s' % test.id())
-                resp = self.session.post(
-                    self.cases_url, data={
-                        'name': test.id(),
-                        'project': self.project_url
-                    })
+                    self.stream.writeln('Adding case for test %s' % data)
+                resp = self.session.post(self.cases_url, data=data)
                 self.raise_for_status(resp)
                 case = json.loads(resp.text)
 
             # does the test exist in the results table?
-            resp = self.session.get(self.results_url, params={
+            params = {
                 'run': self._run_id,
                 'case': case['id']
-            })
+            }
+            if self.debug:
+                self.stream.writeln('Querying %s for %s' % (self.results_url, params))
+            resp = self.session.get(self.results_url, params=params)
             self.raise_for_status(resp)
+            if self.debug:
+                self.stream.writeln('Found %s' % json.loads(resp.text))
             try:
                 result = json.loads(resp.text)[0]
+                if self.debug:
+                    self.stream.writeln('Updating %s' % result)
             except IndexError:
                 # Add a result for each of the tests
-                if self.debug:
-                    self.stream.writeln('Adding result for %s' % test.id())
-                resp = self.session.post(self.results_url, data={
+                data = {
                     'owner': self.user_url,
                     'case': case['url'],
                     'run': self._run_url,
                     'status': 'exists'
-                })
+                }
+                if self.debug:
+                    self.stream.writeln('Adding result for %s' % data)
+                resp = self.session.post(self.results_url, data=data)
                 self.raise_for_status(resp)
                 result = json.loads(resp.text)
 
@@ -393,6 +412,79 @@ class WRTClient(object):
             'owner': self.user_url,
         }
         if self.debug:
-            self.stream.writeln( 'Stopping test %s %s' % (result_url, data))
+            self.stream.writeln('Stopping test %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    # methods for fixtures
+    def startFixture(self, fixture, timestamp):
+        try:
+            case_url = self._existing_tests[fixture.id()]['case_url']
+        except KeyError:
+            data = {
+                'name': fixture.id(),
+                'project': self.project_url,
+                'fixture': True,
+            }
+            if self.debug:
+                self.stream.writeln('Adding case for fixture %s' % data)
+            resp = self.session.post(self.cases_url, data=data)
+            self.raise_for_status(resp)
+            case_url = json.loads(resp.text)['url']
+            self._existing_fixtures[fixture.id()] = {'case_url': case_url}
+        # always create a new result
+        data = {
+            'case': case_url,
+            'run': self._run_url,
+            'owner': self.user_url,
+            'start_time': timestamp,
+            'status': 'inprogress',
+        }
+        if self.debug:
+            self.stream.writeln('Starting fixture %s %s' % (fixture.id(), data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+        self._existing_fixtures[fixture.id()]['result_url'] = json.loads(resp.text)['url']
+
+    def passFixture(self, fixture):
+        result_url = self._existing_fixtures[fixture.id()]['result_url']
+        data = {
+            'status': 'pass',
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+        }
+        if self.debug:
+            self.stream.writeln('Passing fixture %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    def failFixture(self, fixture, err, details, reason):
+        result_url = self._existing_fixtures[fixture.id()]['result_url']
+        data = {
+            'status': 'fail',
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+            'reason': reason,
+        }
+        # TODO: handle details
+        if self.debug:
+            self.stream.writeln('Failing fixture %s %s' % (result_url, data))
+        resp = self.session.put(result_url, data=data)
+        self.raise_for_status(resp)
+
+    def stopFixture(self, fixture, timestamp, duration=None):
+        # get rid of the result_url when done with this method
+        result_url = self._existing_fixtures[fixture.id()].pop('result_url')
+        data = {
+            'end_time': timestamp,
+            'duration': duration,
+            'case': self._existing_fixtures[fixture.id()]['case_url'],
+            'run': self._run_url,
+            'owner': self.user_url,
+        }
+        if self.debug:
+            self.stream.writeln('Stopping fixture %s %s' % (result_url, data))
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
