@@ -498,15 +498,17 @@ class WellRestedTestResult(
     # fixture related methods
     def startFixture(self, fixture):
         self.fixtures += 1
-        self.test_start_time[fixture] = time.time()
+        fix_id = fixture.id()
+        self.test_start_time[fix_id] = time.time()
         if self.showAll:
             if self.timestamp:
-                self.stream.write(self.format_time(self.test_start_time[fixture]) + ' ')
+                self.stream.write(self.format_time(self.test_start_time[fix_id]) + ' ')
             self.stream.write("%s ... " % self.getDescription(fixture))
 
     def stopFixture(self, fixture):
-        self.test_end_time[fixture] = time.time()
-        elapsed_time = self.test_end_time[fixture] - self.test_start_time[fixture]
+        fix_id = fixture.id()
+        self.test_end_time[fix_id] = time.time()
+        elapsed_time = self.test_end_time[fix_id] - self.test_start_time[fix_id]
         if self.showAll:
             self.stream.writeln(" in %.3f" % elapsed_time)
         if self.early_details:

@@ -82,6 +82,9 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
     def __str__(self):
         return self.appendix + ' ' + self.__class__.__name__
 
+    def id(self):
+        return self.__str__()
+
     # fix _make_all, _clean_all, and isDirty to use result and
     # inject the context manager to manage results
     def _make_all(self, result):
