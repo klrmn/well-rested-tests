@@ -54,7 +54,8 @@ class WRTClient(object):
         self._project_id = None
         self._user_url = None
         self._run_url = run_url
-        self._run_id = self.id_from_url(self._run_url) if self._run_url else None
+        self._run_id = None
+        self._tags = []
         self._existing_tests = {}
         self._existing_fixtures = {}
         if self.debug:
@@ -136,6 +137,12 @@ class WRTClient(object):
         return self._user_url
 
     def registerTests(self, tests):
+        # if run_url were *always* a url and never 'previous',
+        # we could have assigned _run_id during __init__,
+        # but since it can be 'previous', we have to do it
+        # after startTestRun()
+        if not self._run_id:
+            self._run_id = self.id_from_url(self._run_url)
         for test in tests:
             # does the test exist in the cases table?
             params = {
@@ -209,26 +216,34 @@ class WRTClient(object):
         for fixture in json.loads(resp.text):
             self._existing_fixtures[fixture['name']] = {'case_url': fixture['url']}
 
+    @property
+    def tags(self):
+        if not self._tags:
+            self._tags = self.buildTags()
+        return self._tags
+
     def buildTags(self):
         # gather known tags for this project
+        params = {
+            'project': self.project_id,
+        }
         if self.debug:
-            self.stream.writeln('Fetching existing tags')
+            self.stream.writeln('Fetching existing tags %s' % params)
         known_tags = {}
-        resp = self.session.get(self.tags_url)
+        resp = self.session.get(self.tags_url, params=params)
         self.raise_for_status(resp)
         for tag in json.loads(resp.text):
-            if tag['project'] == self.project_url:
-                known_tags[tag['name']] = tag['url']
+            known_tags[tag['name']] = tag['url']
         # create tag list for this run
         tag_list = []
         try:
             for name, command in self.config.items('tags'):
                 pair = '%s=%s' % (name, subprocess.check_output(command.split()).strip())
+                data = {'name': pair, 'project': self.project_url}
                 if pair not in known_tags:
                     if self.debug:
-                        self.stream.writeln('Creating tag %s' % pair)
-                    resp = self.session.post(
-                        self.tags_url, data={'name': pair, 'project': self.project_url})
+                        self.stream.writeln('Creating tag %s' % data)
+                    resp = self.session.post(self.tags_url, data=data)
                     self.raise_for_status(resp)
                     known_tags[pair] = json.loads(resp.text)['url']
                 tag_list.append(known_tags[pair])
@@ -238,15 +253,24 @@ class WRTClient(object):
         return tag_list
 
     def getPreviousTestRun(self):
-        # TODO: filter by matching tags, once tagging works
         params = {'project': self.project_id,}
         if self.debug:
             self.stream.writeln('%s %s' % (self.runs_url, params))
         resp = self.session.get(self.runs_url, params=params)
         self.raise_for_status(resp)
-        runs = [run for run in json.loads(resp.text) if run['status'] != 'inprogress']
+        runs = json.loads(resp.text)
+        # only consider finished runs
+        runs = [run for run in runs if run['status'] != 'inprogress']
+        # filter manually, a list can't be put in a query string
+        if self.debug:
+            self.stream.writeln('Required tags: %s' % self.tags)
+        runs = [run for run in runs if run['tags'] == self.tags]
+        # then choose the most recent
         runs = sorted(runs, key=lambda k: k['start_time'], reverse=True)
-        return runs[0]['url']
+        try:
+            return runs[0]['url']
+        except IndexError:
+            return None
 
     def failing(self, include_exists=True):
         previous_run_id = self.id_from_url(self.getPreviousTestRun())
@@ -269,23 +293,28 @@ class WRTClient(object):
     # methods for run
     def startTestRun(self, timestamp=None):
         if self._run_url == 'previous':
+            # may return None
             self._run_url = self.getPreviousTestRun()
+            if not self._run_url:
+                self.stream.writeln(
+                    'WARNING: no matching previous run found, new run will be created.')
         elif self._run_url:
             # re-start the run
             resp = self.session.post(self.runs_url, data={
                 'status': 'inprogress',
                 'owner': self.user_url,
                 'project': self.project_url,
+                'tags': self.tags,
             })
             self.raise_for_status(resp)
-        else:
+        if not self._run_url:
             # create the run
             data = {
                 'project': self.project_url,
                 'owner': self.user_url,
                 'start_time': timestamp,
                 'status': 'inprogress',
-                'tags': self.buildTags()
+                'tags': self.tags,
             }
             if self.debug:
                 self.stream.writeln('Creating run %s' % data)
@@ -299,6 +328,7 @@ class WRTClient(object):
         kwargs['end_time'] = timestamp
         kwargs['owner'] = self.user_url
         kwargs['project'] = self.project_url
+        kwargs['tags'] = self.tags
         if self.debug:
             self.stream.writeln('Stopping run %s' % kwargs)
         resp = self.session.put(self._run_url, data=kwargs)

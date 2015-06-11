@@ -103,4 +103,5 @@ class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
     permission_classes = (permissions.OnlyAdminCanDelete,)
+    # don't try to filter by tags, they can't be made into a query string
     filter_fields = ('project', 'status')
