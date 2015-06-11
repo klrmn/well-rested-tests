@@ -322,18 +322,15 @@ class WRTClient(object):
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
-    def failTest(self, test, err, details):
+    def failTest(self, test, err, details, reason):
         result_url = self._existing_tests[test.id()]['result_url']
         data = {
             'status': 'fail',
             'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
+            'reason': reason,
         }
-        if err:
-            data['reason'] = err[1].__class__.__name__
-        elif 'reason' in details:
-            data['reason'] = details.pop('reason').as_text()
         # TODO: handle details
         if self.debug:
             self.stream.writeln('Failing test %s %s' % (result_url, data))

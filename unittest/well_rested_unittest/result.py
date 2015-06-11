@@ -423,9 +423,9 @@ class WellRestedTestResult(
         self.expectedFailures.append((self.getDescription(test), details))
 
     def addError(self, test, err=None, details=None):
-        if self.wrt_client:
-            self.wrt_client.failTest(test, err, details)
         reason = self._process_reason(test, details)
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
             self.stream.write("ERROR")
             if reason:
@@ -445,9 +445,9 @@ class WellRestedTestResult(
                 self.stop()
 
     def addFailure(self, test, err=None, details=None):
-        if self.wrt_client:
-            self.wrt_client.failTest(test, err, details)
         reason = self._process_reason(test, details)
+        if self.wrt_client:
+            self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
             self.stream.write("FAIL")
             if reason:
