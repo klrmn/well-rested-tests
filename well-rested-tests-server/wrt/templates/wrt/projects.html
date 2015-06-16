@@ -1,0 +1,7 @@
+<ul>
+{% for project in projects %}
+    <li><a href="/project/{{ project.id }}/">{{ project.name }}</a></li>
+{% empty %}
+    <p>No projects are available.</p>
+{% endfor %}
+</ul>
