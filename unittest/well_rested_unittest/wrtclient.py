@@ -356,6 +356,7 @@ class WRTClient(object):
             'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
+            'reason': '',
         }
         if self.debug:
             self.stream.writeln('Passing test %s %s' % (result_url, data))

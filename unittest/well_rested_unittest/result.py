@@ -304,7 +304,7 @@ class WellRestedTestResult(
             self.failing_file = unittest2.runner._WritelnDecorator(
                 open(self.failing_file, mode))
         if self.showAll and self.wrt_client and not self.worker:
-            self.stream.writeln("Watch progress at: %s" % self.wrt_client._run_url)
+            self.stream.writeln("Watch progress at: %s" % self.run_url)
             self.stream.writeln(self.separator2)
         unittest2.TextTestResult.startTestRun(self)
 
@@ -648,6 +648,11 @@ class WellRestedTestResult(
         if infos:
             summary.append(" (%s)\n" % (", ".join(infos),))
         if self.wrt_conf:
-            summary.append(self.wrt_client._run_url)
+            summary.append(self.run_url)
         return "\n".join(summary)
 
+    @property
+    def run_url(self):
+        if not self.wrt_conf:
+            return None
+        return self.wrt_client._run_url.replace('api/', '').replace('s/', '/')
