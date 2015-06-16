@@ -1,0 +1,43 @@
+<h2>Runs</h2>
+
+<h3>Filters</h3>
+<ul>
+    <li><a href="?">All</a> (By Date)</li>
+    <li><a href="?status=pass">Passed</a> ({{ passes }})</li>
+    <li><a href="?status=fail">Failed</a> ({{ fails }})</li>
+    <li><a href="?status=inprogress">In Progress</a> ({{ in_progress }})</li>
+    <li><a href="?status=aborted">Aborted</a> ({{ aborted }})</li>
+</ul>
+
+<table>
+    <th>
+        <td>Run ID</td>
+        {% if not status %}
+            <td>Status</td>
+        {% endif %}
+        <td>Start Time</td>
+        <td>End Time</td>
+        <td>Duration</td>
+        <td>Test Count</td>
+        <td>Tags</td>
+    </th>
+{% for run in runs %}
+    <tr>
+        <td><a href="/run/{{ run.id }}/">{{ run.id }}</a></td>
+        {% if not status %}
+            <td>{{ run.status }}</td>
+        {% endif %}
+        <td>{{ run.start_time }}</td>
+        <td>{{ run.end_time }}</td>
+        <td>{{ run.duration }}</td>
+        <td>{{ run.tests_run }}</td>
+        <td>
+            {% for tag in run.tags.all %}
+            <a href="/tag/{{ tag.id }}">{{ tag.name }}</a><br>
+            {% endfor %}
+        </td>
+    </tr>
+{% empty %}
+    <p>No runs are available.</p>
+{% endfor %}
+</table>
