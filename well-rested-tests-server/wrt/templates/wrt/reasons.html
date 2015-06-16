@@ -1,0 +1,9 @@
+<h2>Reasons</h2>
+
+<ul>
+{% for reason in reasons %}
+    <li><a href="/reason/{{ project.id }}/{{ reason }}">{{ reason }}</a></li>
+{% empty %}
+    <p>No reasons available.</p>
+{% endfor %}
+</ul>

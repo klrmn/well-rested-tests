@@ -1,0 +1,52 @@
+<h2>{% if fixture %} Fixture {% else %} Test Case {% endif %} Results</h2>
+<h3>Filters</h3>
+    <ul>
+    <li><a href="?">All</a> (By Date)</li>
+    <li><a href="?status=pass">Passed</a> ({{ passes }})</li>
+    <li><a href="?status=fail">Failed</a> ({{ fails }})</li>
+    <li><a href="?status=inprogress">In Progress</a> ({{ inprogress }})</li>
+    <li><a href="?status=xfail">Expected Failures</a> ({{ xfails }})</li>
+    <li><a href="?status=xpass">Unexpected Successes</a> ({{ xpasses }})</li>
+    <li><a href="?fixture=True">Fixtures</a></li>
+    <li><a href="?fixture=False">Test Cases</a></li>
+    </ul>
+
+<table>
+    <th>
+        {% if not case %}
+            <td>Name</td>
+        {% else %}
+            <td>Run ID</td>
+        {% endif %}
+        {% if not status %}
+            <td>Status</td>
+        {% endif %}
+        <td>Reason</td>
+        <td>Start Time</td>
+        <td>End Time</td>
+        <td>Duration</td>
+        <td>Tags</td>
+    </th>
+    {% for result in results %}
+    <tr>
+        {% if not case %}
+            <td><a href="/result/{{ result.id }}">{{ result.case.name }}</a></td>
+        {% else %}
+            <td><a href="/result/{{ result.id }}">{{ result.run.id }}</a></td>
+        {% endif %}
+        {% if not status %}
+            <td>{{ result.status }}</td>
+        {% endif %}
+        <td><a href="/reason/{{ result.project.id }}/{{ result.reason }}">{{ result.reason }}</a></td>
+        <td>{{ result.start_time }}</td>
+        <td>{{ result.end_time }}</td>
+        <td>{{ result.duration }}</td>
+        <td><ul>
+            {% for tag in result.tags.all %}
+            <li><a href="/tag/{{ tag.id }}">{{ tag.name }}</a></li>
+            {% endfor %}
+        </ul></td>
+    </tr>
+    {% endfor %}
+
+</table>
