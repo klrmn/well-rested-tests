@@ -1,0 +1,21 @@
+<h1>{% if case.fixture %} Fixture {% else %} Test Case {% endif %} {{ case.name }}</h1>
+
+<h2>Stats</h2>
+    <dl>
+        <dt>Last Status</dt>
+        <dd>{{ case.last_status }}</dd>
+        <dt>Last Week Status</dt>
+        <dd>{{ case.last_week_status }}</dd>
+        <dt>Average Pass Duration</dt>
+        <dd>{{ case.average_pass_duration }}</dd>
+        <dt>Average Fail Duration</dt>
+        <dd>{{ case.average_fail_duration }}</dd>
+        <dt>Max Duration</dt>
+        <dd>{{ case.max_duration }}</dd>
+        <dt>Passes</dt><dd>{{ case.passes }}</dd>
+        <dt>Failures</dt><dd>{{ case.fails }}</dd>
+        <dt>Expected Failures</dt><dd>{{ case.xfails }}</dd>
+        <dt>Unexpected Successes</dt><dd>{{ case.xpasses }}</dd>
+        <dt>Skips</dt><dd>{{ case.skips }}</dd>
+    </dl>
+

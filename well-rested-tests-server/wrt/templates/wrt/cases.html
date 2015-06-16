@@ -1,0 +1,14 @@
+<h2>{% if fixture %} Fixtures {% else %} Test Cases {% endif %}</h2>
+<h3>Filters</h3>
+<ul>
+    <li><a href="?">All</a></li>
+    <li><a href="?fixture=False">Test Cases</a></li>
+    <li><a href="?fixture=True">Fixtures</a></li>
+</ul>
+<ul>
+{% for case in cases %}
+    <li><a href="/case/{{ case.id }}/">{{ case.name }}</a></li>
+{% empty %}
+    <p>No {% if fixture %} fixtures {% else %} test cases {% endif %} are available.</p>
+{% endfor %}
+</ul>
