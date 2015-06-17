@@ -235,6 +235,8 @@ class WellRestedTestResult(
         """The suite shouldn't need to know what the flags are."""
         flags = []
 
+        if self.failfast:
+            flags.append('--failfast')
         if self.dots:
             flags.append('--dots')
         elif self.early_details:
@@ -325,8 +327,11 @@ class WellRestedTestResult(
         if self.failing_file:
             self.failing_file.close()
             if status == 'aborted':
-                with open('%s.bak' % self.failing_file, 'rb') as src:
-                    shutil.copyfileobj(src, self.failing_file)
+                try:
+                    with open('%s.bak' % self.failing_file, 'rb') as src:
+                        shutil.copyfileobj(src, self.failing_file)
+                except IOError:
+                    pass
         # if we're a worker, print the sumarizing stuff to
         # stdout instead of stderr
         if self.worker:

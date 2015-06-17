@@ -45,7 +45,10 @@ class OutputDelegatingTestRunner(unittest2.TextTestRunner):
             test(self.result)
         except KeyboardInterrupt as e:
             if not self.worker:
-                sys.stderr.write('ERROR: Exiting due to ^C.\n')
+                if e.message != 'auto':
+                    sys.stderr.write('ERROR: Exiting due to ^C.\n')
+                else:
+                    sys.stderr.write('ERROR: Exiting due to failed test(s).\n')
             exit(130)  # bash return code for KeyboardInterrupt
         finally:
             self.result.stopTestRun(abort=e)

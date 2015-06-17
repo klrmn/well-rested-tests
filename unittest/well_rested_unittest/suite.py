@@ -296,7 +296,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
             result.registerTests(self._tests)
             for test in self._tests:
                 if result.shouldStop:
-                    break
+                    raise KeyboardInterrupt('auto')
                 resources = getattr(test, 'resources', [])
                 new_resources = set()
                 for name, resource in resources:
