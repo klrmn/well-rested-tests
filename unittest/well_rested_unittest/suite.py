@@ -172,6 +172,8 @@ class ParallelSuite(unittest2.TestSuite):
             'WRT_WORKER_ID=%s' % self.worker,
             result.progName,
         ]
+        if self.debug:
+            command.append('--debug')
         command.extend(result.worker_flags())
         command.append('--from-file .worker%s' % self.worker)
         command.append(' '.join(self.testNames))
