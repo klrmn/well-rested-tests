@@ -258,19 +258,27 @@ class WellRestedTestResult(
                 '--run-url %s' % self.wrt_client._run_url])
         return flags
 
-    def _err_details_to_string(self, test, err=None, details=None):
-        """Convert an error in exc_info form or a contents dict to a string."""
-        if err is not None:
-            return testtools.content.TracebackContent(err, test).as_text()
+    @staticmethod
+    def _details_to_str(details):
         from testtools.testresult.real import _details_to_str
-        return _details_to_str(details, special='traceback')
+        if details:
+            return _details_to_str(details, special='traceback')
+        return None
 
-    def _process_reason(self, test, details):
-        # TODO: also process err, make it into a detail, and assign reason
-        # TODO:  (maybe not here)
+    @staticmethod
+    def _err_to_details(test, err, details):
+        if err:
+            return {
+                'traceback': testtools.content.TracebackContent(err, test),
+                'reason': testtools.content.text_content(err[1].__class__.__name__),
+            }
+        return details
+
+    def _process_reason(self, details):
         reason = None
-        if details and 'reason' in details:
-            reason = details.pop('reason').as_text()
+        if details:
+            if 'reason' in details:
+                reason = details.pop('reason').as_text()
             if reason not in self.reasons:
                 self.reasons[reason] = 1
             else:
@@ -417,6 +425,8 @@ class WellRestedTestResult(
         unittest2.TestResult.stopTest(self, test)
 
     def addExpectedFailure(self, test, err=None, details=None):
+        details = self._err_to_details(test, err, details)
+        reason = self._process_reason(details)
         if self.wrt_client:
             self.wrt_client.xfailTest(test, err, details)
         if self.showAll:
@@ -424,11 +434,12 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write("x")
             self.stream.flush()
-        details = self._err_details_to_string(test, err, details)
+        details = self._details_to_str(details)
         self.expectedFailures.append((self.getDescription(test), details))
 
     def addError(self, test, err=None, details=None):
-        reason = self._process_reason(test, details)
+        details = self._err_to_details(test, err, details)
+        reason = self._process_reason(details)
         if self.wrt_client:
             self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
@@ -438,7 +449,7 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('E')
             self.stream.flush()
-        self.print_or_append(test, err, details, self.errors)
+        self.print_or_append(test, details, reason, self.errors)
         if self.failfast:
             self.stop()
         # this isn't my favorite place to put this, but i can't override
@@ -450,7 +461,8 @@ class WellRestedTestResult(
                 self.stop()
 
     def addFailure(self, test, err=None, details=None):
-        reason = self._process_reason(test, details)
+        details = self._err_to_details(test, err, details)
+        reason = self._process_reason(details)
         if self.wrt_client:
             self.wrt_client.failTest(test, err, details, reason)
         if self.showAll:
@@ -460,17 +472,13 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('F')
             self.stream.flush()
-        self.print_or_append(test, err, details, self.failures)
+        self.print_or_append(test, details, reason, self.failures)
         if self.failfast:
             self.stop()
 
     def addSkip(self, test, reason=None, details=None):
         if reason is None:
-            reason = details.get('reason', None)
-            if reason is None:
-                reason = 'No reason given'
-            else:
-                reason = reason.as_text()
+            reason = self._process_reason(details)
         if self.wrt_client:
             self.wrt_client.skipTest(test, reason)
         if self.showAll:
@@ -534,13 +542,8 @@ class WellRestedTestResult(
         Use this method if you'd like to print a fixture warning
         without having it effect the outcome of the test run.
         """
-        reason = None
-        if details and 'reason' in details:
-            reason = details.pop('reason').as_text()
-            if reason not in self.reasons:
-                self.reasons[reason] = 1
-            else:
-                self.reasons[reason] += 1
+        details = self._err_to_details(fixture, err, details)
+        reason = self._process_reason(details)
         if self.wrt_conf:
             self.wrt_client.failFixture(fixture, err, details, reason)
         if self.showAll:
@@ -550,7 +553,7 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('w')
             self.stream.flush()
-        self.print_or_append(fixture, err, details, self.warnings)
+        self.print_or_append(fixture, details, reason, self.warnings)
 
     def addInfo(self, fixture):
         """
@@ -578,8 +581,8 @@ class WellRestedTestResult(
             return not (self.errors or self.failures or
                         self.unexpectedSuccesses)
 
-    def print_or_append(self, test, err, details, list):
-        details = self._err_details_to_string(test, err, details)
+    def print_or_append(self, test, details, reason, list):
+        details = self._details_to_str(details)
         if self.failing_file:
             if hasattr(test, 'id'):
                 writable = test.id()
@@ -591,7 +594,7 @@ class WellRestedTestResult(
             list.append(description)
             self._detail = details
         else:
-            list.append((description, details))
+            list.append((description, details or reason))
 
     def printErrors(self):
         if self.dots or self.showAll:

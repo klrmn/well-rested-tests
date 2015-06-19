@@ -162,7 +162,7 @@ class TestWellRestedTestResult(unittest2.TestCase):
         self.assertIn('FAILED', actual_summary)
         self.assertIn(' (failures=2, skipped=1, expected failures=1, unexpected successes=1)',
                       actual_summary)
-        self.assertIn('(ExampleException=1)', actual_summary)
+        self.assertIn('(ExampleException=3)', actual_summary)
 
     def test_addWarning(self):
         result = well_rested_unittest.WellRestedTestResult(
