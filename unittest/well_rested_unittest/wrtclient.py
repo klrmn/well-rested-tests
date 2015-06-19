@@ -349,96 +349,21 @@ class WRTClient(object):
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
-    def passTest(self, test):
+
+    def markTestStatus(self, test, status, reason=None, details=None):
         result_url = self._existing_tests[test.id()]['result_url']
         data = {
-            'status': 'pass',
+            'status': status,
             'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
-            'reason': '',
+            'reason': reason
         }
         if self.debug:
-            self.stream.writeln('Passing test %s %s' % (result_url, data))
+            self.stream.writeln('Marking test %s %s' % (result_url, data))
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
-
-    def failTest(self, test, err, details, reason):
-        result_url = self._existing_tests[test.id()]['result_url']
-        data = {
-            'status': 'fail',
-            'case': self._existing_tests[test.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-            'reason': reason,
-        }
         # TODO: handle details
-        if self.debug:
-            self.stream.writeln('Failing test %s %s' % (result_url, data))
-        resp = self.session.put(result_url, data=data)
-        self.raise_for_status(resp)
-
-    def skipTest(self, test, reason):
-        result_url = self._existing_tests[test.id()]['result_url']
-        data = {
-            'status': 'skip',
-            'reason': reason,
-            'case': self._existing_tests[test.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-        }
-        if self.debug:
-            self.stream.writeln('Skipping test %s %s' % (result_url, data))
-        resp = self.session.put(result_url, data=data)
-        self.raise_for_status(resp)
-
-    def xpassTest(self, test, details):
-        result_url = self._existing_tests[test.id()]['result_url']
-        data = {
-            'status': 'xpass',
-            'case': self._existing_tests[test.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-        }
-        if self.debug:
-            self.stream.writeln('xPassing test %s %s' % (result_url, data))
-        # TODO: handle details
-        resp = self.session.put(result_url, data=data)
-        self.raise_for_status(resp)
-
-    def xfailTest(self, test, err, details):
-        result_url = self._existing_tests[test.id()]['result_url']
-        data = {
-            'status': 'xfail',
-            'case': self._existing_tests[test.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-        }
-        if err:
-            data['reason'] = err[1].__class__.__name__
-        elif 'reason' in details:
-            data['reason'] = details.pop('reason').as_text()
-        # TODO: handle details
-        if self.debug:
-            self.stream.writeln('xFailing test %s %s' % (result_url, data))
-        resp = self.session.put(result_url, data=data)
-        self.raise_for_status(resp)
-
-    def abortTest(self, test, reason=None):
-        """Used by suite if aborting run-in-progress."""
-        result_url = self._existing_tests[test.id()]['result_url']
-        data = {
-            'status': 'aborted',
-            'case': self._existing_tests[test.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-        }
-        if reason:
-            data['reason'] = reason
-        if self.debug:
-            self.stream.writeln('Aborting test %s %s' % (result_url, data))
-        resp = self.session.put( result_url, data=data)
-        self.raise_for_status(resp)
 
     def stopTest(self, test, timestamp=None, duration=None):
         result_url = self._existing_tests[test.id()]['result_url']
@@ -484,23 +409,10 @@ class WRTClient(object):
         self.raise_for_status(resp)
         self._existing_fixtures[fixture.id()]['result_url'] = json.loads(resp.text)['url']
 
-    def passFixture(self, fixture):
+    def markFixtureStatus(self, status, fixture, details=None, reason=None):
         result_url = self._existing_fixtures[fixture.id()]['result_url']
         data = {
-            'status': 'pass',
-            'case': self._existing_fixtures[fixture.id()]['case_url'],
-            'run': self._run_url,
-            'owner': self.user_url,
-        }
-        if self.debug:
-            self.stream.writeln('Passing fixture %s %s' % (result_url, data))
-        resp = self.session.put(result_url, data=data)
-        self.raise_for_status(resp)
-
-    def failFixture(self, fixture, err, details, reason):
-        result_url = self._existing_fixtures[fixture.id()]['result_url']
-        data = {
-            'status': 'fail',
+            'status': status,
             'case': self._existing_fixtures[fixture.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
@@ -508,7 +420,7 @@ class WRTClient(object):
         }
         # TODO: handle details
         if self.debug:
-            self.stream.writeln('Failing fixture %s %s' % (result_url, data))
+            self.stream.writeln('Marking fixture %s %s' % (result_url, data))
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 

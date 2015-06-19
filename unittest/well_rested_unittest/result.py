@@ -428,7 +428,7 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.xfailTest(test, err, details)
+            self.wrt_client.markTestStatus(test, 'xfail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("expected failure")
         elif self.dots:
@@ -441,7 +441,8 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.failTest(test, err, details, reason)
+            self.wrt_client.markTestStatus(
+                test, 'fail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("ERROR")
             if reason:
@@ -464,7 +465,8 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.failTest(test, err, details, reason)
+            self.wrt_client.markTestStatus(
+                test, 'fail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("FAIL")
             if reason:
@@ -480,7 +482,7 @@ class WellRestedTestResult(
         if reason is None:
             reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.skipTest(test, reason)
+            self.wrt_client.markTestStatus(test, 'skip', reason=reason)
         if self.showAll:
             self.stream.write("skipped %s" % reason)
         elif self.dots:
@@ -491,7 +493,7 @@ class WellRestedTestResult(
 
     def addSuccess(self, test, details=None):
         if self.wrt_client:
-            self.wrt_client.passTest(test)
+            self.wrt_client.markTestStatus(test, 'pass')
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:
@@ -500,7 +502,7 @@ class WellRestedTestResult(
 
     def addUnexpectedSuccess(self, test, details=None):
         if self.wrt_client:
-            self.wrt_client.xpassTest(test, details)
+            self.wrt_client.markTestStatus(test, 'xpass')
         if self.showAll:
             self.stream.write("unexpected success")
         elif self.dots:
@@ -545,7 +547,7 @@ class WellRestedTestResult(
         details = self._err_to_details(fixture, err, details)
         reason = self._process_reason(details)
         if self.wrt_conf:
-            self.wrt_client.failFixture(fixture, err, details, reason)
+            self.wrt_client.markFixtureStatus(fixture, 'fail', details, reason)
         if self.showAll:
             self.stream.write("warning")
             if reason:
@@ -560,7 +562,7 @@ class WellRestedTestResult(
         Use this method if you'd like to print a fixture success.
         """
         if self.wrt_conf:
-            self.wrt_client.passFixture(fixture)
+            self.wrt_client.markFixtureStatus(fixture, 'pass')
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:
