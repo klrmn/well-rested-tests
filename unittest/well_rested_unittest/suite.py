@@ -17,6 +17,9 @@ __all__ = [
     'DetailCollector',
 ]
 
+__unittest = True
+
+testresources.__unittest = True
 
 class RoundRobinList(list):
 
@@ -55,8 +58,10 @@ class DetailCollector(object):
             self.log_fixture.addDetail(
                 'traceback', testtools.content.TracebackContent(
                     (exc_type, exc_val, exc_tb), self.TRM))
+            self.log_fixture.addDetail(
+                'reason', testtools.content.text_content(exc_val.__class__.__name__))
             self.result.addWarning(
-                str(self.TRM), details=self.log_fixture.getDetails())
+                self.TRM, details=self.log_fixture.getDetails())
         else:
             self.result.addInfo(str(self.TRM))
         self.result.stopFixture(self.TRM)
@@ -305,9 +310,23 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                     new_resources.update(resource.neededResources())
                 try:
                     self.switch(new_resources, result)
-                except Exception:
+                except Exception as e:
                     if self.debug:
-                        result.stream.writeln(traceback.format_exc())
+                        # if the entire stack is in unittest, then we want to
+                        # print it, if not, it's been captured in the fixture's details
+                        exc_info = sys.exc_info()
+                        tb = exc_info[2]
+                        has_non_unittest = False
+                        while tb:
+                            if '__unittest' in tb.tb_frame.f_globals:
+                                tb = tb.tb_next
+                            else:
+                                has_non_unittest = True
+                                break
+                        if not has_non_unittest:
+                            traceback.print_tb(exc_info[2])
+                            result.stream.writeln(str(e))
+
                     # the exception has been reported on the fixture,
                     # but we still want to report failed for the test itself
                     # so that it will show up in --failing
