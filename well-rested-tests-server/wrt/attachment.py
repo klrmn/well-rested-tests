@@ -8,41 +8,59 @@ from result import Result
 import permissions
 
 
+def upload_to(instance, filename):
+    file_type = filename.split('.')[-1]
+    return '%s/%%Y/%%m/%%d/%%H_%%M_%%S-%s' % (file_type, filename)
+
+
 class Attachment(models.Model):
-    result = models.ForeignKey(Result)
-
-
-class ImageAttachment(Attachment):
-    file = models.ImageField(upload_to='screenshots',
-                             null=False, editable=False)
-
-
-class TextAttachment(Attachment):
-    file = models.FileField(upload_to='text',
+    # this is for the case where the user doesn't want to upload
+    # their objects to swift
+    file = models.FileField(upload_to=upload_to,
                             null=False, editable=False)
+    @property
+    def file_url(self):
+        return self.file.url
+
+
+class Detail(models.Model):
+    # this will take either Attachment.url or a swift url
+    result = models.ForeignKey(Result)
+    file_url = models.URLField(null=False, blank=False)
+    file_type = models.TextField(null=False, blank=False)
+    name = models.TextField(null=False, blank=False)
+
+
+class AttachmentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'file')
+
+
+class DetailAdmin(admin.ModelAdmin):
+    list_display = ('name', 'result', 'file_url', 'file_type')
+    list_filter = ('result', 'file_type')
 
 
 # Serializers define the API representation.
-class ImageSerializer(serializers.HyperlinkedModelSerializer):
+class AttachmentSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = ImageAttachment
-        fields = ('id', 'url', 'result', 'file')
+        model = Attachment
+        fields = ('id', 'url', 'file', 'file_url')
 
 
-class TextSerializer(serializers.HyperlinkedModelSerializer):
+class DetailSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = TextAttachment
-        fields = ('id', 'url', 'result', 'file')
+        model = Detail
+        fields = ('id', 'url', 'file_url', 'file_type', 'name')
 
 
 # ViewSets define the view behavior.
-class ImageViewSet(viewsets.ModelViewSet):
-    queryset = ImageAttachment.objects.all()
-    serializer_class = ImageSerializer
+class AttachmentViewSet(viewsets.ModelViewSet):
+    queryset = Attachment.objects.all()
+    serializer_class = AttachmentSerializer
     permission_classes = (permissions.CreateOnly,)
 
 
-class TextViewSet(viewsets.ModelViewSet):
-    queryset = TextAttachment.objects.all()
-    serializer_class = TextSerializer
+class DetailViewSet(viewsets.ModelViewSet):
+    queryset = Detail.objects.all()
+    serializer_class = DetailSerializer
     permission_classes = (permissions.CreateOnly,)
