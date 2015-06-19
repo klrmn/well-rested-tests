@@ -12,8 +12,6 @@ from tag import TagViewSet
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
 router.register(r'users', UserViewSet)
-router.register(r'projects', ProjectViewSet)
-router.register(r'screenshots', ImageViewSet)
 router.register(r'logs', TextViewSet)
 router.register(r'cases', CaseViewSet)
 router.register(r'tags', TagViewSet)
