@@ -1,5 +1,6 @@
 import unittest2
 import resources
+import well_rested_unittest
 
 
 class TestClass1(unittest2.TestCase):
@@ -16,7 +17,7 @@ class TestClass1(unittest2.TestCase):
         pass
 
 
-class TestClass2(unittest2.TestCase):
+class TestClass2(well_rested_unittest.ResourcedTestCase):
 
     resources = [
         ('C', resources.ResourceCRM),

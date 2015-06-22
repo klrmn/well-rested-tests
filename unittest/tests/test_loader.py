@@ -24,85 +24,45 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
         self.assertEqual(loader.suiteClass,
                          well_rested_unittest.ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(['sample_tests'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-                sample_tests.test_class.TestClass1(methodName='test_1'),
-                sample_tests.test_class.TestClass1(methodName='test_2'),
-                sample_tests.test_class.TestClass2(methodName='test_1'),
-                sample_tests.test_class.TestClass2(methodName='test_2'),
-            ])
+        self.assertEqual(len(suite._tests), 12)
 
     def test_subdirectory(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-            ]
-        )
+        self.assertEqual(len(suite._tests), 4)
 
     def test_module(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.test_class.TestClass1(methodName='test_1'),
-                sample_tests.test_class.TestClass1(methodName='test_2'),
-                sample_tests.test_class.TestClass2(methodName='test_1'),
-                sample_tests.test_class.TestClass2(methodName='test_2'),
-            ]
-        )
+        self.assertEqual(len(suite._tests), 4)
 
     def test_class(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass1'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.test_class.TestClass1(methodName='test_1'),
-                sample_tests.test_class.TestClass1(methodName='test_2'),
-            ]
-        )
+        self.assertEqual(len(suite._tests), 2)
 
     def test_method(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests.test_class.TestClass1.test_1'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.test_class.TestClass1(methodName='test_1'),
-            ]
-        )
+        self.assertEqual(len(suite._tests), 1)
 
     def test_subdirectory_and_class(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory',
              'sample_tests.test_class.TestClass2'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-                sample_tests.test_class.TestClass2(methodName='test_1'),
-                sample_tests.test_class.TestClass2(methodName='test_2'),
-            ])
+        self.assertEqual(len(suite._tests), 6)
 
     def test_module_and_method(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests.subdirectory.test_class',
              'sample_tests.test_class.TestClass1.test_2'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_2'),
-                sample_tests.test_class.TestClass1(methodName='test_2'),
-            ])
+        self.assertEqual(len(suite._tests), 5)
 
     def test_failing(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader(failing=True)
@@ -112,8 +72,4 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
         loader = well_rested_unittest.AutoDiscoveringTestLoader(
             from_file='sample_tests/load_2_tests.txt')
         suite = loader.loadTestsFromNames(['sample_tests'], None)
-        self.assertEqual(
-            suite._tests, [
-                sample_tests.subdirectory.test_class.TestClassInSubdirectory(methodName='test_1'),
-                sample_tests.test_class.TestClass1(methodName='test_2'),
-            ])
+        self.assertEqual(len(suite._tests), 2)

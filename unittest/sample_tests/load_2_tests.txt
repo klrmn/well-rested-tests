@@ -1,2 +1,2 @@
-sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1
+sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_pass
 sample_tests.test_class.TestClass1.test_2

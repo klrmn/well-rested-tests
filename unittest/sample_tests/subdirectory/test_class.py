@@ -12,8 +12,14 @@ class TestClassInSubdirectory(unittest2.TestCase):
         ('C', resources.ResourceCRM),
     ]
 
-    def test_1(self):
+    def test_pass(self):
         pass
 
-    def test_2(self):
-        pass
+    def test_fail(self):
+        self.fail("to test failure")
+
+    def test_skip(self):
+        self.skipTest("to test skip")
+
+    def test_error(self):
+        raise Exception("to test error")

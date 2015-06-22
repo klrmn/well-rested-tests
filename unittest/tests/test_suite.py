@@ -44,7 +44,7 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         self.assertEqual(len(result.errors), 0)
         self.assertIn(result.fixtures, (5, 8))  # workaround
 
-    def test_no_errors(self):
+    def test_error_in_test(self):
         loader = AutoDiscoveringTestLoader(
             suiteClass=ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(
@@ -53,8 +53,8 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         self.assertIn(result.fixtures, (6, 9), result.warnings + result.infos)  # workaround
         self.assertFalse(len(result.warnings), result.warnings)
-        self.assertEqual(len(result.failures), 0)
-        self.assertEqual(len(result.errors), 0)
+        self.assertEqual(len(result.failures), 1)
+        self.assertEqual(len(result.errors), 1)
         self.assertIn(len(result.infos), (6, 9), result.infos)  # workaround
 
     @unittest2.skipUnless(os.getenv('LONG', None), 'set LONG=True to run')
@@ -68,8 +68,11 @@ class TestErrorTolerantOptimisedTestSuite(ResourcedTestCase):
             ['sample_tests/subdirectory'], None)
         self.assertEqual(
             suite.list(),
-            ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_1',
-             'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_2'])
+            ['sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_error',
+             'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_fail',
+             'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_pass',
+             'sample_tests.subdirectory.test_class.TestClassInSubdirectory.test_skip',
+            ])
 
 
 class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
@@ -90,15 +93,20 @@ class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         # unfortunately, they don't distribute the exact same way every time
         self.assertEqual(len(suite._tests), 2, suite._tests)
-        self.assertEqual(len(suite._tests[0]._tests), 4, suite._tests[0]._tests)
-        self.assertEqual(len(suite._tests[1]._tests), 2, suite._tests[1]._tests)
+        expected = [4, 8]
+        actual = [len(suite._tests[0]._tests), len(suite._tests[1]._tests)]
+        actual.sort()
+        self.assertEqual(actual, expected)
         # the results represent the collection
-        self.assertEqual(len(result.failures), 0, result.failures)
+        self.assertEqual(len(result.failures), 2, result.failures)
+        self.assertEqual(len(result.skipped), 2, result.skipped)
         # the destroy error may or may not happen before the last test
         self.assertEqual(len(result.warnings), 3, result.warnings)
-        self.assertIn(len(result.errors), (2, 3), result.errors)
+        self.assertIn(len(result.errors), (4, 5), result.errors)
 
     def test_parallel_4_concurrency(self):
+        # Note: tests may error due to fixtures rather than their
+        # more obvious result
         loader = AutoDiscoveringTestLoader(
             suiteClass=ErrorTolerantOptimisedTestSuite)
         self.assertEqual(loader.suiteClass, ErrorTolerantOptimisedTestSuite)
@@ -111,13 +119,17 @@ class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         # unfortunately, they don't distribute the exact same way every time
         self.assertEqual(len(suite._tests), 4)
-        self.assertEqual(len(suite._tests[0]._tests), 2)
-        self.assertEqual(len(suite._tests[1]._tests), 2)
-        self.assertEqual(len(suite._tests[2]._tests), 2)
-        self.assertEqual(len(suite._tests[3]._tests), 0)
+        actual = [len(suite._tests[0]._tests),
+                  len(suite._tests[1]._tests),
+                  len(suite._tests[2]._tests),
+                  len(suite._tests[3]._tests),]
+        actual.sort()
+        expected = [1, 3, 3, 5]
+        self.assertEqual(actual, expected)
         # the results represent the collection
-        self.assertEqual(len(result.failures), 0, result.failures)
+        self.assertEqual(len(result.failures), 2, result.failures)
+        self.assertEqual(len(result.skipped), 2, result.skipped)
         # the destroy error may or may not happen before the last test
         self.assertEqual(len(result.warnings), 3, result.warnings)
-        self.assertIn(len(result.errors), (2, 3), result.errors)
+        self.assertIn(len(result.errors), (4, 5), result.errors)
 
