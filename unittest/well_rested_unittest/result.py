@@ -10,6 +10,8 @@ import wrtclient
 import json
 import shutil
 from threading import Lock
+import content
+
 try:
     from blessings import Terminal
 except ImportError:
@@ -269,8 +271,8 @@ class WellRestedTestResult(
     def _err_to_details(test, err, details):
         if err:
             return {
-                'traceback': testtools.content.TracebackContent(err, test),
-                'reason': testtools.content.text_content(err[1].__class__.__name__),
+                'traceback': content.traceback_content(err, test),
+                'reason': content.text_content(err[1].__class__.__name__),
             }
         return details
 
@@ -310,9 +312,8 @@ class WellRestedTestResult(
                     % e.message)
                 exit(1)
         if self.failing_file:
-            mode = 'ab' if self.update else 'wb'
             self.failing_file = unittest2.runner._WritelnDecorator(
-                open(self.failing_file, mode))
+                open(self.failing_file, 'wb'))
         if self.showAll and self.wrt_client and not self.worker:
             self.stream.writeln("Watch progress at: %s" % self.run_url)
             self.stream.writeln(self.separator2)

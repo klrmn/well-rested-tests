@@ -9,6 +9,7 @@ import os
 import sys
 from threading import Thread
 import subprocess
+import content
 
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
 __unittest = True
 
 testresources.__unittest = True
+
 
 class RoundRobinList(list):
 
@@ -56,10 +58,10 @@ class DetailCollector(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_val:
             self.log_fixture.addDetail(
-                'traceback', testtools.content.TracebackContent(
+                'traceback', content.traceback_content(
                     (exc_type, exc_val, exc_tb), self.TRM))
             self.log_fixture.addDetail(
-                'reason', testtools.content.text_content(exc_val.__class__.__name__))
+                'reason', content.text_content(exc_val.__class__.__name__))
             self.result.addWarning(
                 self.TRM, details=self.log_fixture.getDetails())
         else:
@@ -332,7 +334,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                     # so that it will show up in --failing
                     result.startTest(test)
                     result.addError(test, details={
-                        'reason': testtools.content.text_content(
+                        'reason': content.text_content(
                             'Error handling fixtures')})
                     result.stopTest(test)
                     continue  # next test
@@ -369,8 +371,8 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 
     def filter_by_ids(suite, test_ids):
         """
-        Used by loader when --failing is set.
-        Will ignore any fixture names that are in the failing_file.
+        Used by loader when --from-file is set.
+        Will ignore any fixture names that are in the --from-file.
         Will ignore any previously failing tests not also discovered from the testNames
         """
         filtered = []
