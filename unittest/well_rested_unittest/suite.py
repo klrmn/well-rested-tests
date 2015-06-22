@@ -87,7 +87,7 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         self.worker = os.getenv('WRT_WORKER_ID', None)
 
     def __str__(self):
-        return self.appendix + ' ' + self.__class__.__name__
+        return self.appendix + '_' + self.__class__.__name__
 
     def id(self):
         return self.__str__()

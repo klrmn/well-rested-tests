@@ -107,7 +107,10 @@ class WellRestedTestResult(
         group.add_argument('--update', dest='update', action='store_true',
                            help="Update previous test run (default False).")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
-                           help='path to well-rested-tests config file')
+                           help='Path to well-rested-tests config file')
+        group.add_argument('--storage', dest='storage', action='store',
+                           default=None,
+                           help='Path at which to store details.')
         return parser
 
     @staticmethod
@@ -126,6 +129,7 @@ class WellRestedTestResult(
             timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
             run_url=object.run_url if hasattr(object, 'run_url') else None,
             fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
+            storage=object.storage if hasattr(object, 'storage') else None,
         )
 
     @staticmethod
@@ -147,7 +151,8 @@ class WellRestedTestResult(
   --timestamp           Include test start-time in output (default False).
   --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
-                        path to well-rested-tests config file
+                        Path to well-rested-tests config file
+  --storage STORAGE     Path at which to store details.
 """ % cls.__name__
 
     def __init__(self, failfast=False,
@@ -155,7 +160,7 @@ class WellRestedTestResult(
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
                  update=False, timestamp=False, run_url=None,
-                 fail_percent=0):
+                 fail_percent=0, storage=None):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -169,6 +174,7 @@ class WellRestedTestResult(
         :param timestamp: Include test start-time in output.
         :param run_url:   URL of run to be updated.
         :param fail_percent:
+        :param storage:  Path at which to store details
         :return:
         """
         # some initial processing
@@ -214,6 +220,7 @@ class WellRestedTestResult(
         self.fail_percent = int(fail_percent)
         self.uxsuccess_not_failure = uxsuccess_not_failure
         self.failing_file = failing_file
+        self.storage = storage
         # worker (ie, parallel) set color and failing_file
         if self.worker:
             self.worker = int(self.worker)
@@ -258,6 +265,8 @@ class WellRestedTestResult(
             flags.extend([
                 '--wrt-conf %s' % self.wrt_conf,
                 '--run-url %s' % self.wrt_client._run_url])
+        if self.storage:
+            flags.append('--storage %s' % self.storage)
         return flags
 
     @staticmethod
@@ -585,13 +594,35 @@ class WellRestedTestResult(
                         self.unexpectedSuccesses)
 
     def print_or_append(self, test, details, reason, list):
+        if self.storage:
+            timestamp = datetime.datetime.fromtimestamp(
+                self.start_time).strftime('%Y-%m-%dT%H_%M_%S')
+            # ensure the directories exist
+            try:
+                os.mkdir(self.storage)
+            except os.error:
+                try:
+                    os.mkdir('%s/%s' % (self.storage, timestamp))
+                except os.error:
+                    pass
+            for name, value in details.items():
+                if value.content_type.type == 'application':
+                    type = value.content_type.subtype
+                else:
+                    type = value.content_type.type
+                # get rid of weird stuff in pythonlogging name
+                if ":''" in name:
+                    details.pop(name)
+                    name = name.replace(":''", "")
+                name = name.replace(":''", "")
+                filename = '%s-%s.%s' % (test.id(), name, type)
+                path = '%s/%s/%s' % (self.storage, timestamp, filename)
+                with open(path, 'wb') as h:
+                    h.write(value.as_text())
+                details[name] = content.url_content(path)
         details = self._details_to_str(details)
         if self.failing_file:
-            if hasattr(test, 'id'):
-                writable = test.id()
-            else:
-                writable = test
-            self.failing_file.writeln(writable)
+            self.failing_file.writeln(test.id())
         description = self.getDescription(test)
         if self.early_details:
             list.append(description)

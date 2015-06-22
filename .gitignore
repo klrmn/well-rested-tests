@@ -67,3 +67,4 @@ unittest/.wrt.conf
 # result files
 unittest/.failing*
 unittest/.worker*
+unittest/output

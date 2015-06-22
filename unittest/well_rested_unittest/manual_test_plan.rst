@@ -10,31 +10,35 @@ reminder of what combinations should be tested.
 test_quiet
 ==========
 
-`testotest -q sample_tests`
+`wrtest -q sample_tests`
 
 test_dots
 =========
 
-`testotest sample_tests`
+`wrtest sample_tests`
 
 test_verbose
 ============
 
-`testotest -v sample_tests`
+`wrtest -v sample_tests`
 
 test_early_details
 ==================
 
 --early-details overrides -q and -d
 
-`testotest -q --early-details sample_tests`
-`testotest --early-details --dots sample_tests`
+`wrtest -q --early-details sample_tests`
+`wrtest --early-details --dots sample_tests`
 
 test_parallel
 =============
 
 --parallel overrides -v and --early-details but not -q
 
-`testotest --parallel --list sample_tests`
-`testotest --parallel -v --early-details sample_tests`
-`testotest --parallel -q sample_tests`
+`wrtest --parallel --list sample_tests`
+`wrtest --parallel -v --early-details sample_tests`
+`wrtest --parallel -q sample_tests`
+
+test_storage
+============
+`wrtest -v --storage output sample_tests`
