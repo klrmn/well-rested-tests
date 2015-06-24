@@ -365,6 +365,7 @@ class WellRestedTestResult(
                 'testsRun': self.testsRun,
                 'fixtures': self.fixtures,
                 'worker': self.worker,
+                'reasons': self.reasons,
             }, sort_keys=True, indent=4, separators=(',', ': '))
             with open('.worker%s' % self.worker, 'wb') as f:
                 f.write(output + '\n')
@@ -384,10 +385,19 @@ class WellRestedTestResult(
             self.skipped.extend(other_result['skipped'])
             self.unexpectedSuccesses.extend(other_result['unexpectedSuccesses'])
             self.expectedFailures.extend(other_result['expectedFailures'])
-            self.testsRun += other_result['testsRun']
             self.infos.extend(other_result['infos'])
             self.warnings.extend(other_result['warnings'])
+            self.testsRun += other_result['testsRun']
             self.fixtures += other_result['fixtures']
+            # json changed None to null, change it back
+            null = other_result.pop('null', None)
+            if null:
+                other_result['reasons'][None] = null
+            for reason in other_result['reasons']:
+                if reason in self.reasons:
+                    self.reasons[reason] += other_result['reasons'][reason]
+                else:
+                    self.reasons[reason] = other_result['reasons'][reason]
             if self.failing_file:
                 with open('.failing%s' % other_result['worker']) as src:
                     shutil.copyfileobj(src, self.failing_file)
