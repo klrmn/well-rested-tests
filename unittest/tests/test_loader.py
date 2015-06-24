@@ -24,13 +24,13 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
         self.assertEqual(loader.suiteClass,
                          well_rested_unittest.ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(['sample_tests'], None)
-        self.assertEqual(len(suite._tests), 12)
+        self.assertEqual(len(suite._tests), 16)
 
     def test_subdirectory(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory'], None)
-        self.assertEqual(len(suite._tests), 4)
+        self.assertEqual(len(suite._tests), 6)
 
     def test_module(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
@@ -55,14 +55,14 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
         suite = loader.loadTestsFromNames(
             ['sample_tests/subdirectory',
              'sample_tests.test_class.TestClass2'], None)
-        self.assertEqual(len(suite._tests), 6)
+        self.assertEqual(len(suite._tests), 8)
 
     def test_module_and_method(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
         suite = loader.loadTestsFromNames(
             ['sample_tests.subdirectory.test_class',
              'sample_tests.test_class.TestClass1.test_2'], None)
-        self.assertEqual(len(suite._tests), 5)
+        self.assertEqual(len(suite._tests), 7)
 
     def test_failing(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader(failing=True)

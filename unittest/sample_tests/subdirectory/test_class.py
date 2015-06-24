@@ -23,3 +23,11 @@ class TestClassInSubdirectory(unittest2.TestCase):
 
     def test_error(self):
         raise Exception("to test error")
+
+    @unittest2.expectedFailure
+    def test_xfail(self):
+        self.fail("expected failure")
+
+    @unittest2.expectedFailure
+    def test_xpass(self):
+        pass

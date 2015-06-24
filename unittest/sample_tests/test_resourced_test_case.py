@@ -1,5 +1,6 @@
 import well_rested_unittest
 import sys
+import unittest2
 
 
 class TestResourcedTestCase(well_rested_unittest.ResourcedTestCase):
@@ -22,3 +23,11 @@ class TestResourcedTestCase(well_rested_unittest.ResourcedTestCase):
         sys.stderr.write('a message to stderr')
         self.logger.error('and error message')
         raise Exception("to test error")
+
+    @unittest2.expectedFailure
+    def test_xfail(self):
+        self.fail("expected failure")
+
+    @unittest2.expectedFailure
+    def test_xpass(self):
+        pass
