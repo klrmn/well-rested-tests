@@ -1,5 +1,5 @@
 hostname = (ENV['VAGRANT_HOSTNAME'] || 'wrt-server')
-ip_addr = (ENV['VAGRANT_IP'] || "192.168.8.80")
+ip_addr = (ENV['VAGRANT_IP'] || "192.168.8.88")
 box_name = (ENV['VAGRANT_BOX'] || "trusty")
 box_url = (ENV['VAGRANT_BOX_URL'] || "https://atlas.hashicorp.com/ubuntu/boxes/trusty64/versions/14.04/providers/virtualbox.box")
 current_datetime = Time.now.strftime("%Y%m%d-%H%M%S")

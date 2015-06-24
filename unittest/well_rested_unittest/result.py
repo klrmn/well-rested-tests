@@ -438,7 +438,8 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.markTestStatus(test, 'xfail', details=details, reason=reason)
+            details = self.wrt_client.markTestStatus(
+                test, 'xfail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("expected failure")
         elif self.dots:
@@ -451,7 +452,7 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.markTestStatus(
+            details = self.wrt_client.markTestStatus(
                 test, 'fail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("ERROR")
@@ -475,7 +476,7 @@ class WellRestedTestResult(
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
         if self.wrt_client:
-            self.wrt_client.markTestStatus(
+            details = self.wrt_client.markTestStatus(
                 test, 'fail', details=details, reason=reason)
         if self.showAll:
             self.stream.write("FAIL")
@@ -557,7 +558,8 @@ class WellRestedTestResult(
         details = self._err_to_details(fixture, err, details)
         reason = self._process_reason(details)
         if self.wrt_conf:
-            self.wrt_client.markFixtureStatus(fixture, 'fail', details, reason)
+            details = self.wrt_client.markFixtureStatus(
+                fixture, 'fail', details, reason)
         if self.showAll:
             self.stream.write("warning")
             if reason:
@@ -606,20 +608,28 @@ class WellRestedTestResult(
                 except os.error:
                     pass
             for name, value in details.items():
-                if value.content_type.type == 'application':
-                    type = value.content_type.subtype
+                attachment = None
+                if value.content_type == content.URL:
+                    continue  # urls pass-thru
                 else:
-                    type = value.content_type.type
-                # get rid of weird stuff in pythonlogging name
-                if ":''" in name:
-                    details.pop(name)
+                    if value.content_type.type == 'application':
+                        type = value.content_type.subtype
+                        attachment = value.as_bytes()
+                    elif value.content_type.type == 'text':
+                        type = value.content_type.type
+                        attachment = value.as_text().strip()
+                    if not attachment:
+                        continue  # empty attachments pass thru
+                    # get rid of weird stuff in pythonlogging name
+                    if ":''" in name:
+                        details.pop(name)
+                        name = name.replace(":''", "")
                     name = name.replace(":''", "")
-                name = name.replace(":''", "")
-                filename = '%s-%s.%s' % (test.id(), name, type)
-                path = '%s/%s/%s' % (self.storage, timestamp, filename)
-                with open(path, 'wb') as h:
-                    h.write(value.as_text())
-                details[name] = content.url_content(path)
+                    filename = '%s-%s.%s' % (test.id(), name, type)
+                    path = '%s/%s/%s' % (self.storage, timestamp, filename)
+                    with open(path, 'wb') as h:
+                        h.write(value.as_text())
+                    details[name] = content.url_content(path)
         details = self._details_to_str(details)
         if self.failing_file:
             self.failing_file.writeln(test.id())

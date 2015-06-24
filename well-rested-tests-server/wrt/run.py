@@ -109,7 +109,7 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'url', 'owner', 'project',
                   'start_time', 'end_time', 'duration', 'status',
                   'tests_run', 'failures', 'xpasses', 'xfails',
-                  'tags')
+                  'skips', 'tags')
 
 
 # ViewSets define the view behavior.

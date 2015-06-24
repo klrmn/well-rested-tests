@@ -5,6 +5,10 @@ import json
 import time
 import subprocess
 import ConfigParser
+import content
+
+__unittest = True
+requests.models.__unittest = True
 
 
 class WRTException(Exception):
@@ -45,6 +49,7 @@ class WRTClient(object):
             self.server = self.config.get('default', 'SERVER')
             self.project_name = self.config.get('default', 'PROJECT_NAME')
             self.protocol = self.config.get('default', 'PROTOCOL')
+            self.storage = self.config.get('default', 'STORAGE')
         except ConfigParser.Error as e:
             raise WRTConfigParamNotFound(e.message)
         self.session.mount(
@@ -58,6 +63,13 @@ class WRTClient(object):
         self._tags = []
         self._existing_tests = {}
         self._existing_fixtures = {}
+        if self.storage == 'swift':
+            from swiftclient import Connection
+            self.swift = Connection(self.config.get('swift', 'AUTH_URL'),
+                                    user=self.config.get('swift', 'USER'),
+                                    key=self.config.get('swift', 'KEY'),
+                                    auth_version=self.config.get('swift', 'AUTH_VERSION'),
+                                    tenant_name=self.config.get('swift', 'TENANT'))
         if self.debug:
             self.stream.writeln(
                 'WRTClient created for %s/%s running %s on %s' %
@@ -87,6 +99,14 @@ class WRTClient(object):
     def tags_url(self):
         return '%s://%s/api/tags/' % (self.protocol, self.server)
 
+    @property
+    def attachments_url(self):
+        return '%s://%s/api/attachments/' % (self.protocol, self.server)
+
+    @property
+    def details_url(self):
+        return '%s://%s/api/details/' % (self.protocol, self.server)
+
     def raise_for_status(self, resp):
         try:
             resp.raise_for_status()
@@ -96,7 +116,7 @@ class WRTClient(object):
                 end = resp.text.find('<div id="traceback">')
                 self.stream.writeln(resp.text[beginning:end])
             except Exception:
-                self.stream.writeln(resp.text)
+                self.stream.writeln(resp.body)
             raise
 
     def id_from_url(self, url):
@@ -351,6 +371,82 @@ class WRTClient(object):
 
     def markTestStatus(self, test, status, reason=None, details=None):
         result_url = self._existing_tests[test.id()]['result_url']
+        # upload details
+        if status in ['fail', 'skip', 'xfail'] and details:
+            if self.storage == 'swift':
+                from swiftclient import ClientException
+                try:
+                    self.swift.get_container(self._run_id)
+                except ClientException:
+                    self.swift.put_container(
+                        self._run_id, headers={'x-container-read': '.r:*'})
+            for name, value in details.items():
+                # TODO: contemplate whether all content types are created equal
+                attachment = None
+                if value.content_type == content.URL:
+                    continue  # urls pass-thru to detail stage
+                else:
+                    if value.content_type.type == 'application':
+                        type = value.content_type.subtype
+                        attachment = value.as_bytes()
+                    elif value.content_type.type == 'text':
+                        type = value.content_type.type
+                        attachment = value.as_text().strip()
+                    if not attachment:
+                        continue  # empty attachments pass thru
+                    # get rid of weird stuff in pythonlogging name
+                    if ":''" in name:
+                        details.pop(name)
+                        name = name.replace(":''", "")
+                    # object named for test id, content name and type
+                    filename = '%s-%s.%s' % (test.id(), name, type)
+
+                    if self.storage == 'swift':
+                        from swiftclient import ClientException
+                        try:
+                            self.swift.get_container(self._run_id)
+                        except ClientException:
+                            self.swift.put_container(self._run_id)
+                        # optionally set object expiration
+                        expire = self.config.get('swift', 'EXPIRE_SECONDS')
+                        headers = {}
+                        if expire:
+                            headers['X-Delete-After'] = expire
+                        self.swift.put_object(self._run_id, filename, attachment,
+                                              headers=headers)
+                        url = '%s/%s/%s' % (self.swift.url, self._run_id, filename)
+                    elif self.storage == 'database':
+                        # TODO: chunked?
+                        headers = {
+                            'Content-Type': '%s/%s' % (
+                                value.content_type.type, value.content_type.subtype),
+                            'Content-length': len(attachment),
+                            'Content-Disposition': 'attachment; filename=%s' % filename
+                        }
+                        if self.debug:
+                            self.stream.writeln('uploading attachment %s %s %s'
+                                                % (self.attachments_url, name, headers))
+                        resp = self.session.post(self.attachments_url,
+                                                 data={'file': attachment},
+                                                 headers=headers)
+                        self.raise_for_status(resp)
+                        url = json.loads(resp.text)['file_url']
+
+                # create a detail by attaching the attachment to a result
+                data = {
+                    'file_url': url,
+                    'file_type': type,
+                    'name': name,
+                    'result': result_url,
+                }
+                if self.debug:
+                    self.stream.writeln('adding detail %s %s' % (self.details_url, data))
+                resp = self.session.post(self.details_url, data=data)
+                self.raise_for_status(resp)
+
+                # replace the detail content with a url for printing
+                details[name] = content.url_content(url)
+        # update the result
         data = {
             'status': status,
             'case': self._existing_tests[test.id()]['case_url'],
@@ -362,7 +458,8 @@ class WRTClient(object):
             self.stream.writeln('Marking test %s %s' % (result_url, data))
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
-        # TODO: handle details
+
+        return details
 
     def stopTest(self, test, timestamp=None, duration=None):
         result_url = self._existing_tests[test.id()]['result_url']
@@ -410,6 +507,78 @@ class WRTClient(object):
 
     def markFixtureStatus(self, fixture, status, details=None, reason=None):
         result_url = self._existing_fixtures[fixture.id()]['result_url']
+        # upload details
+        if status == 'fail' and details:
+            if self.storage == 'swift':
+                from swiftclient import ClientException
+                try:
+                    self.swift.get_container(self._run_id)
+                except ClientException:
+                    self.swift.put_container(
+                        self._run_id, headers={'x-container-read': '.r:*'})
+            for name, value in details.items():
+                # TODO: contemplate whether all content types are created equal
+                attachment = None
+                if value.content_type == content.URL:
+                    continue  # urls pass-thru to detail stage
+                else:
+                    if value.content_type.type == 'application':
+                        type = value.content_type.subtype
+                        attachment = value.as_bytes()
+                    elif value.content_type.type == 'text':
+                        type = value.content_type.type
+                        attachment = value.as_text().strip()
+                    if not attachment:
+                        continue  # empty attachments pass thru
+                    # get rid of weird stuff in pythonlogging name
+                    if ":''" in name:
+                        details.pop(name)
+                        name = name.replace(":''", "")
+                    # object named for result id, fixture id, content name and type
+                    # (fixture id isn't unique per run)
+                    filename = '%s-%s-%s.%s' % (
+                        self.id_from_url(result_url), fixture.id(), name, type)
+
+                    if self.storage == 'swift':
+                        # optionally set object expiration
+                        expire = self.config.get('swift', 'EXPIRE_SECONDS')
+                        headers = {}
+                        if expire:
+                            headers['X-Delete-After'] = expire
+                        self.swift.put_object(self._run_id, filename, attachment,
+                                              headers=headers)
+                        url = '%s/%s/%s' % (self.swift.url, self._run_id, filename)
+                    elif self.storage == 'database':
+                        # TODO: chunked?
+                        headers = {
+                            'Content-Type': '%s/%s' % (
+                                value.content_type.type, value.content_type.subtype),
+                            'Content-length': len(attachment),
+                            'Content-Disposition': 'attachment; filename=%s' % filename
+                        }
+                        if self.debug:
+                            self.stream.writeln('uploading attachment %s %s %s'
+                                                % (self.attachments_url, name, headers))
+                        resp = self.session.post(self.attachments_url,
+                                                 data={'file': attachment},
+                                                 headers=headers)
+                        self.raise_for_status(resp)
+                        url = json.loads(resp.text)['file_url']
+
+                # create a detail by attaching the attachment to a result
+                data = {
+                    'file_url': url,
+                    'file_type': type,
+                    'name': name,
+                    'result': result_url,
+                }
+                if self.debug:
+                    self.stream.writeln('adding detail %s %s' % (self.details_url, data))
+                resp = self.session.post(self.details_url, data=data)
+                self.raise_for_status(resp)
+
+                # replace the detail content with a url for printing
+                details[name] = content.url_content(url)
         data = {
             'status': status,
             'case': self._existing_fixtures[fixture.id()]['case_url'],
@@ -417,11 +586,11 @@ class WRTClient(object):
             'owner': self.user_url,
             'reason': reason,
         }
-        # TODO: handle details
         if self.debug:
             self.stream.writeln('Marking fixture %s %s' % (result_url, data))
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
+        return details
 
     def stopFixture(self, fixture, timestamp, duration=None):
         # get rid of the result_url when done with this method

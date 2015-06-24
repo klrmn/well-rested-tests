@@ -102,8 +102,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
-MEDIA_ROOT = '/media/'
-MEDIA_URL = ''  # ???
+
+# TODO: figure out the location and permissions
+MEDIA_ROOT = '/tmp/media/'
+MEDIA_URL = 'http://this.doesnt.work/media/'  # ???
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -111,5 +113,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ],
-    'DEFAULT_FILTER_BACKENDS': ('rest_framework.filters.DjangoFilterBackend',)
+    'DEFAULT_FILTER_BACKENDS': ('rest_framework.filters.DjangoFilterBackend',),
+    'DEFAULT_PARSER_CLASSES': ('rest_framework.parsers.JSONParser',
+                               'rest_framework.parsers.FormParser',
+                               'rest_framework.parsers.MultiPartParser',
+                               'rest_framework.parsers.FileUploadParser',),
 }

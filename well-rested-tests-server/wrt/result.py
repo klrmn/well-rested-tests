@@ -46,6 +46,11 @@ class Result(models.Model):
     def tags(self):
         return self.run.tags.all()
 
+    @property
+    def details(self):
+        from attachment import Detail  # circular
+        return Detail.objects.filter(result=self)
+
 
 class ResultAdmin(admin.ModelAdmin):
     list_display = ('__str__',
@@ -74,6 +79,7 @@ def result(request, result_id):
     return render(request, 'wrt/result.html', {
         'result': result,
         'tags': result.tags,
+        'details': result.details,
     })
 
 

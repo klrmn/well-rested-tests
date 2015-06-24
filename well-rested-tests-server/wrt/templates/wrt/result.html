@@ -4,4 +4,18 @@
 {% include "wrt/tags.html" %}
 
 <h3>Details</h3>
-<p>Details not yet supported.</p>
+<ul>
+{% for detail in details %}
+    {% if detail.file_type == 'text' %}
+        <h4>{{ detail.name }}</h4>
+        <object type="text/plain" data="{{ detail.file_url }}"  width=800></object>
+    {% elif detail.file_type == 'png' %}
+        <h4>{{ detail.name }}</h4>
+        <image src="{{ detail.file_url }}"></image>
+    {% else %}
+        <h4><a href="{{ detail.file_url }}">{{ detail.name }}</a></h4>
+    {% endif %}
+{% empty %}
+    <p>No details available.</p>
+{% endfor %}
+</ul>

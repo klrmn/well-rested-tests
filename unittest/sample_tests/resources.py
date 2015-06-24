@@ -2,6 +2,7 @@ import well_rested_unittest
 
 
 class Resource(object):
+    # an object for the make methods to return
     pass
 
 

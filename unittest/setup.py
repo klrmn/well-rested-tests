@@ -8,7 +8,8 @@ setup(
     author_email='lklrmn@gmail.com',
     url='https://github.com/klrmn/well-rested-tests/unittest',
     install_requires=['unittest2==1.0.0', 'testtools==1.7.1',
-                      'requests', 'six', 'testresources', 'fixtures',],
+                      'requests', 'six', 'testresources', 'fixtures',
+                      'python-swiftclient>=2.4.0'],
     py_modules=['well_rested_unittest'],
     entry_points={
         'console_scripts': [
