@@ -349,7 +349,6 @@ class WRTClient(object):
         resp = self.session.put(result_url, data=data)
         self.raise_for_status(resp)
 
-
     def markTestStatus(self, test, status, reason=None, details=None):
         result_url = self._existing_tests[test.id()]['result_url']
         data = {
@@ -357,7 +356,7 @@ class WRTClient(object):
             'case': self._existing_tests[test.id()]['case_url'],
             'run': self._run_url,
             'owner': self.user_url,
-            'reason': reason
+            'reason': reason,
         }
         if self.debug:
             self.stream.writeln('Marking test %s %s' % (result_url, data))
@@ -382,7 +381,7 @@ class WRTClient(object):
     # methods for fixtures
     def startFixture(self, fixture, timestamp):
         try:
-            case_url = self._existing_tests[fixture.id()]['case_url']
+            case_url = self._existing_fixtures[fixture.id()]['case_url']
         except KeyError:
             data = {
                 'name': fixture.id(),
@@ -405,11 +404,11 @@ class WRTClient(object):
         }
         if self.debug:
             self.stream.writeln('Starting fixture %s %s' % (fixture.id(), data))
-        resp = self.session.put(result_url, data=data)
+        resp = self.session.post(self.results_url, data=data)
         self.raise_for_status(resp)
         self._existing_fixtures[fixture.id()]['result_url'] = json.loads(resp.text)['url']
 
-    def markFixtureStatus(self, status, fixture, details=None, reason=None):
+    def markFixtureStatus(self, fixture, status, details=None, reason=None):
         result_url = self._existing_fixtures[fixture.id()]['result_url']
         data = {
             'status': status,

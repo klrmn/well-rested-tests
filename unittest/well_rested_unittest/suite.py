@@ -65,7 +65,7 @@ class DetailCollector(object):
             self.result.addWarning(
                 self.TRM, details=self.log_fixture.getDetails())
         else:
-            self.result.addInfo(str(self.TRM))
+            self.result.addInfo(self.TRM)
         self.result.stopFixture(self.TRM)
         self.log_fixture.cleanUp()
         self.TRM.appendix = ''

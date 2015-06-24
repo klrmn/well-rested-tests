@@ -527,7 +527,7 @@ class WellRestedTestResult(
         self.test_start_time[fix_id] = time.time()
         if self.wrt_conf:
             self.wrt_client.startFixture(
-                fixture, self.format_time(self.test_start_time[fixture.id()]))
+                fixture, self.format_time(self.test_start_time[fix_id]))
         if self.showAll:
             if self.timestamp:
                 self.stream.write(self.format_time(self.test_start_time[fix_id]) + ' ')
