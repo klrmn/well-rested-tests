@@ -1,9 +1,17 @@
+import traceback
 from testtools.content import (Content, content_from_file,
                                TracebackContent as traceback_content,
                                json_content, text_content, istext)
 from testtools.content_type import (ContentType, JSON, UTF8_TEXT)
 
 URL = ContentType('text', 'x-url')
+
+TRACEBACK = ContentType('text', 'x-traceback',
+            {"language": "python", "charset": "utf8"})
+
+
+def unittest_traceback_content(err):
+    return Content(TRACEBACK, lambda: traceback.format_exception(*err))
 
 
 def url_content(url):
@@ -15,8 +23,8 @@ def url_content(url):
 
 
 __all__ = [
-    Content, ContentType, content_from_file,
-    traceback_content, text_content,
-    json_content, url_content,
-    URL, JSON, UTF8_TEXT
+    'Content', 'ContentType', 'content_from_file',
+    'traceback_content', 'text_content',
+    'json_content', 'url_content', 'unittest_traceback_content',
+    'URL', 'JSON', 'UTF8_TEXT', 'TRACEBACK',
 ]

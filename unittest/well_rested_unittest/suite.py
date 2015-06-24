@@ -57,9 +57,10 @@ class DetailCollector(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_val:
+            # if i use straight-up content.traceback_content, no traceback will
+            # be added because all the stack is __unittest = True
             self.log_fixture.addDetail(
-                'traceback', content.traceback_content(
-                    (exc_type, exc_val, exc_tb), self.TRM))
+                'traceback', content.unittest_traceback_content((exc_type, exc_val, exc_tb)))
             self.log_fixture.addDetail(
                 'reason', content.text_content(exc_val.__class__.__name__))
             self.result.addWarning(
