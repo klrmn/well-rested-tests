@@ -11,7 +11,7 @@ from well_rested_unittest.result import ColorizedWritelnDecorator
 
 class DBRun(well_rested_unittest.ReportingTestResourceManager):
 
-    config_file = '.wrt.conf'
+    config_file = '.wrt-database.conf'
 
     def make(self, dependency_resources):
         try:
