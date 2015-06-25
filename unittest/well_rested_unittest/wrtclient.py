@@ -8,7 +8,6 @@ import ConfigParser
 import content
 
 __unittest = True
-requests.models.__unittest = True
 
 
 class WRTException(Exception):
@@ -28,6 +27,10 @@ class WRTProjectNotFound(WRTException):
 
 
 class WRTUserNotFound(WRTException):
+    pass
+
+
+class WRTRequestFailed(WRTException):
     pass
 
 
@@ -110,14 +113,14 @@ class WRTClient(object):
     def raise_for_status(self, resp):
         try:
             resp.raise_for_status()
-        except requests.exceptions.HTTPError:
+        except requests.exceptions.HTTPError as e:
             try:
                 beginning = resp.text.find('<div id="summary">')
                 end = resp.text.find('<div id="traceback">')
                 self.stream.writeln(resp.text[beginning:end])
             except Exception:
                 self.stream.writeln(resp.body)
-            raise
+            raise WRTRequestFailed(e.message)
 
     def id_from_url(self, url):
         return int(url.split('/')[-2])
@@ -477,19 +480,27 @@ class WRTClient(object):
 
     # methods for fixtures
     def startFixture(self, fixture, timestamp):
-        try:
+        # find or create the case
+        try:  # find out if we've seen it locally before
             case_url = self._existing_fixtures[fixture.id()]['case_url']
         except KeyError:
-            data = {
-                'name': fixture.id(),
-                'project': self.project_url,
-                'fixture': True,
-            }
-            if self.debug:
-                self.stream.writeln('Adding case for fixture %s' % data)
-            resp = self.session.post(self.cases_url, data=data)
+            resp = self.session.get(self.cases_url, params={'name': fixture.id()})
             self.raise_for_status(resp)
-            case_url = json.loads(resp.text)['url']
+            try:  # find out if the server has seen it
+                case_url = json.loads(resp.text)[0]['url']
+            except (IndexError, AttributeError):
+                # doesn't exist anywhere, create it
+                data = {
+                    'name': fixture.id(),
+                    'project': self.project_url,
+                    'fixture': True,
+                }
+                if self.debug:
+                    self.stream.writeln('Adding case for fixture %s' % data)
+                resp = self.session.post(self.cases_url, data=data)
+                self.raise_for_status(resp)
+                case_url = json.loads(resp.text)['url']
+            # save it locally
             self._existing_fixtures[fixture.id()] = {'case_url': case_url}
         # always create a new result
         data = {

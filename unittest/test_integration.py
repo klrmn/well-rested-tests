@@ -16,7 +16,7 @@ class DBRun(well_rested_unittest.ReportingTestResourceManager):
     def make(self, dependency_resources):
         try:
             subprocess.check_output(
-                'wrt -v --wrt-conf %s sample_tests' % self.config_file,
+                'wrt -v --debug --wrt-conf %s sample_tests' % self.config_file,
                 shell=True, stderr=subprocess.STDOUT)
         except (subprocess.CalledProcessError,
                 requests.exceptions.ConnectionError) as e:
