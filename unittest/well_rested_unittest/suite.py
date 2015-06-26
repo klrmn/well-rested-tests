@@ -49,6 +49,7 @@ class DetailCollector(object):
         self.result = result
 
     def __enter__(self):
+        # capture logging
         FORMAT = '%(asctime)s [%(levelname)s] %(name)s %(lineno)d: %(message)s'  # noqa
         self.log_fixture = fixtures.FakeLogger(format=FORMAT)
         self.log_fixture.setUp()
@@ -59,16 +60,17 @@ class DetailCollector(object):
         if exc_val:
             # if i use straight-up content.traceback_content, no traceback will
             # be added because all the stack is __unittest = True
-            self.log_fixture.addDetail(
+            self.TRM.addDetail(
                 'traceback', content.unittest_traceback_content((exc_type, exc_val, exc_tb)))
-            self.log_fixture.addDetail(
+            self.TRM.addDetail(
                 'reason', content.text_content(exc_val.__class__.__name__))
-            self.result.addWarning(
-                self.TRM, details=self.log_fixture.getDetails())
+            details = self.TRM.getDetails()
+            testtools.testcase.gather_details(self.log_fixture.getDetails(), details)
+            self.log_fixture.cleanUp()
+            self.result.addWarning(self.TRM, details=details)
         else:
             self.result.addInfo(self.TRM)
         self.result.stopFixture(self.TRM)
-        self.log_fixture.cleanUp()
         self.TRM.appendix = ''
 
 
@@ -86,12 +88,39 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.appendix = ''
         self.worker = os.getenv('WRT_WORKER_ID', None)
+        self.__details = {}
 
     def __str__(self):
         return self.appendix + '_' + self.__class__.__name__
 
     def id(self):
         return self.__str__()
+
+    def addDetail(self, name, content_object, override=False):
+        """Add a detail to be reported with this test's outcome.
+
+        For more details see pydoc testtools.TestResult.
+
+        :param name: The name to give this detail.
+        :param content_object: The content object for this detail. See
+            testtools.content for more detail.
+        :param override: Boolean override existing detail with that name
+            (default False).
+        """
+        # ensure the name is unique
+        index = 0
+        try_name = name
+        while try_name in self.__details and not override:
+            index += 1
+            try_name = '%s-%s' % (name, index)
+        self.__details[try_name] = content_object
+
+    def getDetails(self):
+        """Get the details dict that will be reported with this test's outcome.
+
+        For more details see pydoc testtools.TestResult.
+        """
+        return self.__details
 
     # fix _make_all, _clean_all, and isDirty to use result and
     # inject the context manager to manage results

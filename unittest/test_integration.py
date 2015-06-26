@@ -51,9 +51,17 @@ class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
         except requests.exceptions.ConnectionError:
             self.skipTest("wrt server not running")
         super(TestDBIntegration, self).setUp()
+        self.addDetail(
+            'test_run_output',
+            well_rested_unittest.text_content(self.CalledProcessError.output))
 
     def run_url(self):
-        return self.CalledProcessError.output.split('\n')[-2]
+        output_lines = self.CalledProcessError.output.split('\n')
+        output_lines.reverse()
+        for line in output_lines:
+            if line.startswith('http'):
+                return line
+        raise Exception("Run URL not found in output.")
 
     def run_id(self):
         return self.wrtclient.id_from_url(self.run_url())

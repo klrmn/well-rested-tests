@@ -4,6 +4,7 @@ from loader import *
 from program import *
 from suite import *
 from case import *
+from content import *
 
 __unittest = True
 
