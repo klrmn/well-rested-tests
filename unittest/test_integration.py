@@ -120,7 +120,7 @@ class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
             self.assertEqual(run['failures'], 8)
             self.assertEqual(run['skips'], 2)
             self.assertEqual(run['status'], 'fail')
-            self.assertEqual(run['tests_run'], 31)
+            self.assertEqual(run['tests_run'], 32)
             self.assertEqual(run['xfails'], 2)
             self.assertEqual(run['xpasses'], 2)
         except Exception:

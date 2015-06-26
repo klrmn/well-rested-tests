@@ -1,6 +1,7 @@
 import well_rested_unittest
 import sys
 import unittest2
+import resources
 
 
 class TestResourcedTestCase(well_rested_unittest.ResourcedTestCase):
@@ -31,3 +32,7 @@ class TestResourcedTestCase(well_rested_unittest.ResourcedTestCase):
     @unittest2.expectedFailure
     def test_xpass(self):
         pass
+
+    def test_addDetail_upStack(self):
+        resources.SomeUnrelatedClass().do_something()
+        self.assertIn('a_thing', self.getDetails())

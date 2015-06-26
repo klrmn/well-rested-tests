@@ -107,12 +107,12 @@ class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
         suite.run(result)
         # unfortunately, they don't distribute the exact same way every time
         self.assertEqual(len(suite._tests), 2, suite._tests)
-        expected = [5, 11]
+        expected = [6, 11]
         actual = [len(suite._tests[0]._tests), len(suite._tests[1]._tests)]
         actual.sort()
         self.assertEqual(actual, expected)
         # the results represent the collection
-        self.assertEqual(result.testsRun, 16)
+        self.assertEqual(result.testsRun, 17)
         self.assertIn(len(result.failures), (1, 2), result.failures)
         self.assertEqual(len(result.skipped), 2, result.skipped)
         self.assertEqual(len(result.expectedFailures), 2, result.expectedFailures)
@@ -141,9 +141,9 @@ class TestParallelErrorTolerantOptimisedTestSuite(ResourcedTestCase):
                   len(suite._tests[2]._tests),
                   len(suite._tests[3]._tests),]
         actual.sort()
-        self.assertIn(actual, [[2, 3, 4, 7], [2, 3, 3, 8]])
+        self.assertIn(actual, [[2, 4, 4, 7], [2, 3, 4, 8]])
         # the results represent the collection
-        self.assertEqual(result.testsRun, 16)
+        self.assertEqual(result.testsRun, 17)
         self.assertIn(len(result.failures), (1, 2), result.failures)
         self.assertEqual(len(result.skipped), 2, result.skipped)
         self.assertEqual(len(result.expectedFailures), 2, result.expectedFailures)

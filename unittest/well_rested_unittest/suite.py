@@ -10,17 +10,30 @@ import sys
 from threading import Thread
 import subprocess
 import content
+import inspect
 
 
 __all__ = [
     'ReportingTestResourceManager',
     'ErrorTolerantOptimisedTestSuite',
-    'DetailCollector',
+    'DetailCollector', 'addDetail_upStack',
 ]
 
 __unittest = True
 
 testresources.__unittest = True
+
+
+def addDetail_upStack(name, content):
+    stack = inspect.stack()
+    for frame in stack:
+        if frame[3] in [
+            'run', '__call__', # for test cases
+            '_make_all', '_clean_all', 'reset', 'isDirty', # for resources
+        ]:
+            self = frame[0].f_locals.get('self')
+            if hasattr(self, 'addDetail'):
+                self.addDetail(name, content)
 
 
 class RoundRobinList(list):

@@ -24,7 +24,7 @@ class TestAutoDiscoveringTestLoader(unittest2.TestCase):
         self.assertEqual(loader.suiteClass,
                          well_rested_unittest.ErrorTolerantOptimisedTestSuite)
         suite = loader.loadTestsFromNames(['sample_tests'], None)
-        self.assertEqual(len(suite._tests), 16)
+        self.assertEqual(len(suite._tests), 17)
 
     def test_subdirectory(self):
         loader = well_rested_unittest.AutoDiscoveringTestLoader()
