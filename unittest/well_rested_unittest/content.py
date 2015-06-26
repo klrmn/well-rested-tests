@@ -5,11 +5,11 @@ from testtools.content import (Content, content_from_file,
 from testtools.content_type import (ContentType, JSON, UTF8_TEXT)
 
 URL = ContentType('text', 'x-url')
-
 TRACEBACK = ContentType('text', 'x-traceback',
             {"language": "python", "charset": "utf8"})
-
 PNG = ContentType('image', 'png')
+HTML = ContentType('text', 'html')
+TGZ = ContentType('application', 'x-compressed')
 
 
 def unittest_traceback_content(err):
@@ -28,9 +28,18 @@ def png_content(data):
     return Content(PNG, lambda: data)
 
 
+def html_content(html):
+    return Content(HTML, lambda: html)
+
+
+def tgz_content(filename):
+    return content_from_file(filename, TGZ)
+
+
 __all__ = [
     'Content', 'ContentType', 'content_from_file',
     'traceback_content', 'text_content', 'png_content',
     'json_content', 'url_content', 'unittest_traceback_content',
-    'URL', 'JSON', 'UTF8_TEXT', 'TRACEBACK', 'PNG',
+    'html_content', 'tgz_content',
+    'URL', 'JSON', 'UTF8_TEXT', 'TRACEBACK', 'PNG', 'HTML', 'TGZ',
 ]
