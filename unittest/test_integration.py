@@ -160,7 +160,7 @@ class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
         self.assertEqual(result['status'], 'fail')
         # don't test details until MEDIA_URL has been sorted out
         details = self.get_details(result['id'])
-        self.assertEqual(len(details), 2, details)
+        self.assertEqual(len(details), 4, details)
 
     def test_skip(self):
         # fetch the result for a skipped test in this run
@@ -206,6 +206,8 @@ class TestSwiftIntegration(TestDBIntegration):
         self.assertEqual(result['status'], 'fail')
         # errored fixture should have logging and traceback details
         details = self.get_details(result['id'])
-        self.assertEqual(len(details), 2, details)
+        self.assertEqual(len(details), 4, details)
         self.assertIn('cleaning booga booga', details['pythonlogging'])
         self.assertIn("booga booga", details['traceback'])
+        self.assertIn('message to stdout', details['stdout'])
+        self.assertIn('message to stderr', details['stderr'])

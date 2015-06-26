@@ -1,4 +1,5 @@
 import well_rested_unittest
+import sys
 
 
 class Resource(object):
@@ -83,6 +84,8 @@ class DestroyFailResource(well_rested_unittest.ReportingTestResourceManager):
         return Resource()
 
     def clean(self, resource):
+        print 'message to stdout'
+        sys.stderr.write('message to stderr\n')
         self.logger.info('cleaning booga booga')
         raise Exception('booga booga')
 DestroyFailResourceRM = DestroyFailResource()

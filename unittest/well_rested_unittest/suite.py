@@ -53,6 +53,20 @@ class DetailCollector(object):
         FORMAT = '%(asctime)s [%(levelname)s] %(name)s %(lineno)d: %(message)s'  # noqa
         self.log_fixture = fixtures.FakeLogger(format=FORMAT)
         self.log_fixture.setUp()
+        # capture stderr
+        if self.TRM._capture_error:
+            self.stderr_stream_fixture = fixtures.StringStream('stderr')
+            self.stderr_stream_fixture.setUp()
+            self.stderr_fixture = fixtures.MonkeyPatch(
+                'sys.stderr', self.stderr_stream_fixture.stream)
+            self.stderr_fixture.setUp()
+        # capture stdout
+        if self.TRM._capture_output:
+            self.stdout_stream_fixture = fixtures.StringStream('stdout')
+            self.stdout_stream_fixture.setUp()
+            self.stdout_fixture = fixtures.MonkeyPatch(
+                'sys.stdout', self.stdout_stream_fixture.stream)
+            self.stdout_fixture.setUp()
         self.TRM.appendix = self.appendix
         self.result.startFixture(self.TRM)
 
@@ -67,6 +81,16 @@ class DetailCollector(object):
             details = self.TRM.getDetails()
             testtools.testcase.gather_details(self.log_fixture.getDetails(), details)
             self.log_fixture.cleanUp()
+            if self.TRM._capture_output:
+                testtools.testcase.gather_details(self.stdout_stream_fixture.getDetails(), details)
+                testtools.testcase.gather_details(self.stdout_fixture.getDetails(), details)
+                self.stdout_stream_fixture.cleanUp()
+                self.stdout_fixture.cleanUp()
+            if self.TRM._capture_error:
+                testtools.testcase.gather_details(self.stderr_stream_fixture.getDetails(), details)
+                testtools.testcase.gather_details(self.stderr_fixture.getDetails(), details)
+                self.stderr_stream_fixture.cleanUp()
+                self.stderr_fixture.cleanUp()
             self.result.addWarning(self.TRM, details=details)
         else:
             self.result.addInfo(self.TRM)
@@ -81,6 +105,8 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
     Use context manager to report results of finishedWith and getResource
     to the result."""
     collector_class = DetailCollector
+    _capture_error = True
+    _capture_output = True
 
     def __init__(self, level=logging.INFO):
         super(ReportingTestResourceManager, self).__init__()
