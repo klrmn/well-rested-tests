@@ -107,6 +107,7 @@ class DetailCollector(object):
             self.result.addWarning(self.TRM, details=details)
         else:
             self.result.addInfo(self.TRM)
+        self.TRM.resetDetails()
         self.result.stopFixture(self.TRM)
         self.TRM.appendix = ''
 
@@ -160,6 +161,9 @@ class ReportingTestResourceManager(testresources.TestResourceManager):
         For more details see pydoc testtools.TestResult.
         """
         return self.__details
+
+    def resetDetails(self):
+        self.__details = {}
 
     # fix _make_all, _clean_all, and isDirty to use result and
     # inject the context manager to manage results
