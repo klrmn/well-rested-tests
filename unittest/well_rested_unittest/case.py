@@ -55,6 +55,14 @@ class ResourcedTestCase(testtools.TestCase, unittest2.TestCase):
             setUpResources(self, self.resources, _get_result())
             self.addCleanup(tearDownResources, self, self.resources, _get_result())
 
+    def addDetail(self, name, content, overwrite=False):
+        try_name = name
+        count = 0
+        while try_name in self.getDetails() and not overwrite:
+            count += 1
+            try_name = '%s-%s' % (name, count)
+        testtools.TestCase.addDetail(self, try_name, content)
+
     # new assertion methods
     def assertIsType(self, item, type_or_types, msg=None):
         """Verify an item is the type, or one of the types specified."""
