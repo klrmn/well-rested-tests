@@ -40,8 +40,9 @@ when passed the appropriate flags, will communicate with the well-rested-tests-s
 
 ## Installation:
 cd well_rested_unittest
-python setup.py develop/install
+pip install [--force-reinstall] .
 
+Note: Due to dependencies which use pbr, installing via 'python setup.py install' is not recommended.
 Note: If blessings is installed, the --color option for the results will work.
 
 ## TODO:
