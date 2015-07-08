@@ -1,4 +1,5 @@
 import traceback
+import base64
 from testtools.content import (Content, content_from_file,
                                TracebackContent as traceback_content,
                                json_content, text_content, istext)
@@ -25,7 +26,7 @@ def url_content(url):
 
 
 def png_content(data):
-    return Content(PNG, lambda: data)
+    return Content(PNG, lambda: base64.b64decode(data))
 
 
 def html_content(html):

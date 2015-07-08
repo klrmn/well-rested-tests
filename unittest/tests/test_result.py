@@ -1,8 +1,6 @@
 import sys
 import unittest2
 import well_rested_unittest
-from utils import OutputBuffer
-import traceback
 import testtools
 
 

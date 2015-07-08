@@ -622,11 +622,11 @@ class WellRestedTestResult(
                 if value.content_type == content.URL:
                     continue  # urls pass-thru
                 else:
-                    if value.content_type.type == 'application':
-                        type = value.content_type.subtype
-                        attachment = value.as_bytes()
+                    if value.content_type.type in ['image', 'application']:
+                        tp = value.content_type.subtype
+                        attachment = value.iter_bytes()
                     elif value.content_type.type == 'text':
-                        type = value.content_type.type
+                        tp = value.content_type.type
                         attachment = value.as_text().strip()
                     if not attachment:
                         continue  # empty attachments pass thru
@@ -635,10 +635,13 @@ class WellRestedTestResult(
                         details.pop(name)
                         name = name.replace(":''", "")
                     name = name.replace(":''", "")
-                    filename = '%s-%s.%s' % (test.id(), name, type)
+                    filename = '%s-%s.%s' % (test.id(), name, tp)
+                    # don't overwrite files for fixtures
+                    if list == self.warnings:
+                        filename = '%s-%s' % (self.test_start_time[test.id()], filename)
                     path = '%s/%s/%s' % (self.storage, timestamp, filename)
                     with open(path, 'wb') as h:
-                        h.write(value.as_text())
+                        h.write(attachment)
                     details[name] = content.url_content(path)
         details = self._details_to_str(details)
         if self.failing_file:
