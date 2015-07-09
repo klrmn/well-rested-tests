@@ -287,7 +287,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                            action='store_true',
                            help='Reverse order of tests.')
         group.add_argument('--debug', dest='debug',
-                           action='store_true',
+                           action='count',
                            help='Debug the suite functionality.')
         group.add_argument('--parallel', dest='parallel',
                            action='store_true',
@@ -302,7 +302,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
         self.parallel = object.parallel if hasattr(object, 'parallel') else False
         self.concurrency = object.concurrency if hasattr(object, 'concurrency') else 2
         self.list_tests = object.list_tests if hasattr(object, 'list_tests') else False
-        self.debug = object.debug if hasattr(object, 'debug') else False
+        self.debug = object.debug if hasattr(object, 'debug') else 0
         self.reverse = object.reverse if hasattr(object, 'reverse') else False
         # these two are grabbed from the program object
         self.testNames = object.testNames
@@ -321,7 +321,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
 """ % cls.__name__
 
     def __init__(self, tests, concurrency=2, parallel=False, list_tests=False,
-                 debug=False, reverse=False, testNames=[]):
+                 debug=0, reverse=False, testNames=[]):
         super(ErrorTolerantOptimisedTestSuite, self).__init__(tests)
         self.list_tests = list_tests
         self.debug = debug
@@ -400,7 +400,7 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                             else:
                                 has_non_unittest = True
                                 break
-                        if not has_non_unittest:
+                        if (not has_non_unittest) or self.debug > 1:
                             traceback.print_tb(exc_info[2])
                             result.stream.writeln(str(e))
 

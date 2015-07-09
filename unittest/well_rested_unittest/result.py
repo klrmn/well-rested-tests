@@ -130,6 +130,7 @@ class WellRestedTestResult(
             run_url=object.run_url if hasattr(object, 'run_url') else None,
             fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
             storage=object.storage if hasattr(object, 'storage') else None,
+            debug=object.debug if hasattr(object, 'debug') else 0,
         )
 
     @staticmethod
@@ -160,7 +161,7 @@ class WellRestedTestResult(
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
                  update=False, timestamp=False, run_url=None,
-                 fail_percent=0, storage=None):
+                 fail_percent=0, storage=None, debug=0):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -175,6 +176,7 @@ class WellRestedTestResult(
         :param run_url:   URL of run to be updated.
         :param fail_percent:
         :param storage:  Path at which to store details
+        :param debug:    debug > 1 causes debug printing in wrtconf
         :return:
         """
         # some initial processing
@@ -238,7 +240,7 @@ class WellRestedTestResult(
         if wrt_conf:
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
-                wrt_conf, self.stream, debug=False, run_url=run_url)
+                wrt_conf, self.stream, debug=debug > 1, run_url=run_url)
 
     def worker_flags(self):
         """The suite shouldn't need to know what the flags are."""
