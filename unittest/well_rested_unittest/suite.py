@@ -84,7 +84,7 @@ class DetailCollector(object):
         self.result.startFixture(self.TRM)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_val:
+        if exc_val and exc_type != KeyboardInterrupt:
             # if i use straight-up content.traceback_content, no traceback will
             # be added because all the stack is __unittest = True
             self.TRM.addDetail(
@@ -385,6 +385,8 @@ class ErrorTolerantOptimisedTestSuite(testresources.OptimisingTestSuite, unittes
                     new_resources.update(resource.neededResources())
                 try:
                     self.switch(new_resources, result)
+                except KeyboardInterrupt:
+                    raise
                 except Exception as e:
                     if self.debug:
                         # if the entire stack is in unittest, then we want to
