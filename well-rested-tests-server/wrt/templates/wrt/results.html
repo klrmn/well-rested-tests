@@ -42,8 +42,10 @@
         <td>{{ result.end_time }}</td>
         <td>{{ result.duration }}</td>
         <td><ul>
-            {% for tag in result.tags.all %}
-            <li><a href="/tag/{{ tag.id }}">{{ tag.name }}</a></li>
+            {% for tg in result.tags.all %}
+            {% if tg.name != tag.name and tg.value != tag.value %}
+            <li><a href="/tag/{{ tg.id }}">{{ tg.name }} {{ tg.value }}</a></li>
+            {% endif %}
             {% endfor %}
         </ul></td>
     </tr>

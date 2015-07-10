@@ -2,7 +2,7 @@
 
 <ul>
 {% for tag in tags %}
-    <li><a href="/tag/{{ tag.id }}">{{ tag.name }}</a> ({{ tag.run_set.count }} Runs)</li>
+    <li><a href="/tag/{{ tag.id }}">{{ tag.name }} {{ tag.value }}</a> ({{ tag.run_set.count }} Runs)</li>
 {% empty %}
     <p>No tags found.</p>
 {% endfor %}

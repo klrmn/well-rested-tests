@@ -32,8 +32,10 @@
         <td>{{ run.duration }}</td>
         <td>{{ run.tests_run }}</td>
         <td>
-            {% for tag in run.tags.all %}
-            <a href="/tag/{{ tag.id }}">{{ tag.name }}</a><br>
+            {% for tg in run.tags.all %}
+            {% if tg.name != tag.name and tg.value != tag.value %}
+            <a href="/tag/{{ tg.id }}">{{ tg.name }} {{ tg.value}}</a><br>
+            {% endif %}
             {% endfor %}
         </td>
     </tr>

@@ -1,3 +1,32 @@
-<h1>{{ tag.name }}</h1>
+<h1>{{ tag.name }} {{ tag.value }}</h1>
+
+<h2>Comparison Matrix</h2>
+<table>
+    <th>
+        <td>Case</td>
+        {% for run in runs %}
+        <td>
+            <a href="/run/{{ run.id }}">{{ run.id }}</a><br>
+            {% for tg in run.tags.all %}
+            {% if tg != tag %}
+            <a href="/tag/{{ tg.id }}">{{ tg.name }} {{ tg.value }}<br></a>
+            {% endif %}
+            {% endfor %}
+        </td>
+        {% endfor %}
+    </th>
+    {% for case, row in results %}
+    <tr>
+        <td><a href="/case/{{ case.id }}">{{ case.name }}</a></td>
+        {% for run in row %}
+            {% if run == None %}
+            <td>N/A</td>
+            {% else %}
+            <td><a href="/result/{{ run.id }}">{{ run.status }}</a></td>
+            {% endif %}
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
 
 {% include "wrt/runs.html" %}

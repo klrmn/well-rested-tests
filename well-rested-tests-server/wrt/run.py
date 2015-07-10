@@ -91,7 +91,7 @@ class Run(models.Model):
 
     def description(self):
         # used to show tags in the admin interface
-        tags = [tag.name for tag in self.tags.all()]
+        tags = ['%s %s' % (tag.name, tag.value) for tag in self.tags.all()]
         print(self.tags)
         return ' '.join(tags)
 

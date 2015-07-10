@@ -256,13 +256,17 @@ class WRTClient(object):
         resp = self.session.get(self.tags_url, params=params)
         self.raise_for_status(resp)
         for tag in json.loads(resp.text):
-            known_tags[tag['name']] = tag['url']
+            pair = '%s %s' % (tag['name'], tag['value'])
+            known_tags[pair] = tag['url']
+        if self.debug:
+            self.stream.writeln('KNOWN TAGS: %s' % known_tags)
         # create tag list for this run
         tag_list = []
         try:
             for name, command in self.config.items('tags'):
-                pair = '%s=%s' % (name, subprocess.check_output(command.split()).strip())
-                data = {'name': pair, 'project': self.project_url}
+                value = subprocess.check_output(command, shell=True).strip()
+                data = {'name': name, 'value': value, 'project': self.project_url}
+                pair = '%s %s' % (name, value)
                 if pair not in known_tags:
                     if self.debug:
                         self.stream.writeln('Creating tag %s' % data)
