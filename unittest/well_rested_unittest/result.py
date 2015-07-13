@@ -657,7 +657,10 @@ class WellRestedTestResult(
                         tp = value.content_type.subtype
                         attachment = value.iter_bytes()
                     elif value.content_type.type == 'text':
-                        tp = value.content_type.type
+                        if value.content_type.subtype == 'plain':
+                            tp = value.content_type.type
+                        else:
+                            tp = value.content_type.subtype
                         attachment = value.as_text().strip()
                     if not attachment:
                         continue  # empty attachments pass thru
