@@ -84,6 +84,7 @@ class DetailCollector(object):
         self.result.startFixture(self.TRM)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # add current exception as detail
         if exc_val and exc_type != KeyboardInterrupt:
             # if i use straight-up content.traceback_content, no traceback will
             # be added because all the stack is __unittest = True
@@ -91,22 +92,27 @@ class DetailCollector(object):
                 'traceback', content.unittest_traceback_content((exc_type, exc_val, exc_tb)))
             self.TRM.addDetail(
                 'reason', content.text_content(exc_val.__class__.__name__))
-            details = self.TRM.getDetails()
-            testtools.testcase.gather_details(self.log_fixture.getDetails(), details)
-            self.log_fixture.cleanUp()
-            if self.TRM._capture_output:
-                testtools.testcase.gather_details(self.stdout_stream_fixture.getDetails(), details)
-                testtools.testcase.gather_details(self.stdout_fixture.getDetails(), details)
-                self.stdout_stream_fixture.cleanUp()
-                self.stdout_fixture.cleanUp()
-            if self.TRM._capture_error:
-                testtools.testcase.gather_details(self.stderr_stream_fixture.getDetails(), details)
-                testtools.testcase.gather_details(self.stderr_fixture.getDetails(), details)
-                self.stderr_stream_fixture.cleanUp()
-                self.stderr_fixture.cleanUp()
+
+        # collect all the details regardless of status, we might want them later
+        details = self.TRM.getDetails()
+        testtools.testcase.gather_details(self.log_fixture.getDetails(), details)
+        self.log_fixture.cleanUp()
+        if self.TRM._capture_output:
+            testtools.testcase.gather_details(self.stdout_stream_fixture.getDetails(), details)
+            testtools.testcase.gather_details(self.stdout_fixture.getDetails(), details)
+            self.stdout_stream_fixture.cleanUp()
+            self.stdout_fixture.cleanUp()
+        if self.TRM._capture_error:
+            testtools.testcase.gather_details(self.stderr_stream_fixture.getDetails(), details)
+            testtools.testcase.gather_details(self.stderr_fixture.getDetails(), details)
+            self.stderr_stream_fixture.cleanUp()
+            self.stderr_fixture.cleanUp()
+
+        # update the result
+        if exc_val and exc_type != KeyboardInterrupt:
             self.result.addWarning(self.TRM, details=details)
         else:
-            self.result.addInfo(self.TRM)
+            self.result.addInfo(self.TRM, details=details)
         self.TRM.resetDetails()
         self.result.stopFixture(self.TRM)
         self.TRM.appendix = ''

@@ -111,6 +111,9 @@ class WellRestedTestResult(
         group.add_argument('--storage', dest='storage', action='store',
                            default=None,
                            help='Path at which to store details.')
+        group.add_argument('--store-pass', dest='store_pass', action='store_true',
+                           help='Store (with --storage) or display (with -e) details'
+                                ' for passing tests (default False).')
         return parser
 
     @staticmethod
@@ -130,6 +133,7 @@ class WellRestedTestResult(
             run_url=object.run_url if hasattr(object, 'run_url') else None,
             fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
             storage=object.storage if hasattr(object, 'storage') else None,
+            store_pass=object.store_pass if hasattr(object, 'store_pass') else False,
             debug=object.debug if hasattr(object, 'debug') else 0,
         )
 
@@ -154,6 +158,8 @@ class WellRestedTestResult(
   -w WRT_CONF, --wrt-conf WRT_CONF
                         Path to well-rested-tests config file
   --storage STORAGE     Path at which to store details.
+  --store-pass          Store (with --storage) or display (with -e) details
+                        for passing tests (default False).
 """ % cls.__name__
 
     def __init__(self, failfast=False,
@@ -161,7 +167,7 @@ class WellRestedTestResult(
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
                  update=False, timestamp=False, run_url=None,
-                 fail_percent=0, storage=None, debug=0):
+                 fail_percent=0, storage=None, store_pass=False, debug=0):
         """
         :param failfast: boolean (default False)
         :param uxsuccess_not_failure: boolean (default False)
@@ -176,6 +182,7 @@ class WellRestedTestResult(
         :param run_url:   URL of run to be updated.
         :param fail_percent:
         :param storage:  Path at which to store details
+        :param store_pass: boolean (default False) display or store details for passing tests
         :param debug:    debug > 1 causes debug printing in wrtconf
         :return:
         """
@@ -223,6 +230,7 @@ class WellRestedTestResult(
         self.uxsuccess_not_failure = uxsuccess_not_failure
         self.failing_file = failing_file
         self.storage = storage
+        self.store_pass = store_pass
         # worker (ie, parallel) set color and failing_file
         if self.worker:
             self.worker = int(self.worker)
@@ -270,6 +278,8 @@ class WellRestedTestResult(
         if self.storage:
             flags.append('--storage %s/%s'
                          % (self.storage, self.format_time_for_directory(self.start_time)))
+        if self.store_pass:
+            flags.append('--store-pass')
         return flags
 
     @staticmethod
@@ -545,6 +555,8 @@ class WellRestedTestResult(
         elif self.dots:
             self.stream.write('.')
             self.stream.flush()
+        if self.store_pass:
+            self.print_or_append(test, details, "Pass", None)
 
     def addUnexpectedSuccess(self, test, details=None):
         if self.wrt_client:
@@ -555,6 +567,8 @@ class WellRestedTestResult(
             self.stream.write("u")
             self.stream.flush()
         self.unexpectedSuccesses.append(self.getDescription(test))
+        if self.store_pass:
+            self.print_or_append(test, details, "Pass", None)
 
     # fixture related methods
     def startFixture(self, fixture):
@@ -604,7 +618,7 @@ class WellRestedTestResult(
             self.stream.flush()
         self.print_or_append(fixture, details, reason, self.warnings)
 
-    def addInfo(self, fixture):
+    def addInfo(self, fixture, details=None):
         """
         Use this method if you'd like to print a fixture success.
         """
@@ -616,6 +630,8 @@ class WellRestedTestResult(
             self.stream.write(',')
             self.stream.flush()
         self.infos.append(self.getDescription(fixture))
+        if self.store_pass:
+            self.print_or_append(fixture, details, "Pass", self.infos)
 
     # summarizing methods
     def wasSuccessful(self):
@@ -630,8 +646,8 @@ class WellRestedTestResult(
             return not (self.errors or self.failures or
                         self.unexpectedSuccesses)
 
-    def print_or_append(self, test, details, reason, list):
-        if self.storage:
+    def print_or_append(self, test, details, reason, lst):
+        if self.storage and details:
             for name, value in details.items():
                 attachment = None
                 if value.content_type == content.URL:
@@ -654,19 +670,22 @@ class WellRestedTestResult(
                     # don't overwrite files for fixtures
                     if list == self.warnings:
                         filename = '%s-%s' % (self.test_start_time[test.id()], filename)
-                    path = '%s/%s/%s' % (self.storage, timestamp, filename)
+                    path = os.path.join(self.storage, filename)
                     with open(path, 'wb') as h:
                         h.write(attachment)
                     details[name] = content.url_content(path)
         details = self._details_to_str(details)
-        if self.failing_file:
+        # only put failing / errored *tests* in failing file, not fixtures
+        if self.failing_file and lst is not None and lst in [self.errors, self.failures]:
             self.failing_file.writeln(test.id())
         description = self.getDescription(test)
+        # don't try to print anything if we don't have a list to print to
         if self.early_details:
-            list.append(description)
+            if lst is not None:
+                lst.append(description)
             self._detail = details
-        else:
-            list.append((description, details or reason))
+        elif lst is not None:  # Note: if lst == self.info, it won't print out
+            lst.append((description, details or reason))
 
     def printErrors(self):
         if self.dots or self.showAll:

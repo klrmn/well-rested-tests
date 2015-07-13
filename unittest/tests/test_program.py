@@ -1,6 +1,3 @@
-import sys
-import unittest2
-import subprocess
 import well_rested_unittest
 
 
@@ -20,7 +17,7 @@ class NewSuite(well_rested_unittest.ErrorTolerantOptimisedTestSuite):
     pass
 
 
-class TestFullyConfigurableTestProgram(unittest2.TestCase):
+class TestFullyConfigurableTestProgram(well_rested_unittest.ResourcedTestCase):
 
     maxDiff = None
     concurrency = 4
@@ -65,8 +62,10 @@ class TestFullyConfigurableTestProgram(unittest2.TestCase):
         program = well_rested_unittest.FullyConfigurableTestProgram(
             argv=['fctest', 'sample_tests'])
         help_message = program.parser.format_help()
-        # sys.stderr.write(help_message)  # much easier debugging
-        self.assertIn(program.testResult.expectedHelpText(program.resultClass), help_message)
-        self.assertIn(program.testLoader.expectedHelpText(program.loaderClass), help_message)
-        self.assertIn(program.testRunner.expectedHelpText(program.runnerClass), help_message)
-        self.assertIn(program.suiteClass.expectedHelpText(program.suiteClass), help_message)
+        print("ACTUAL:\n%s" % help_message)
+        for cls, obj in [(program.resultClass, program.testResult),
+                         (program.loaderClass, program.testLoader),
+                         (program.runnerClass, program.testRunner),
+                         (program.suiteClass, program.suiteClass)]:
+            expected = obj.expectedHelpText(cls)
+            self.assertIn(expected, help_message, expected)
