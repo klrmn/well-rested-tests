@@ -251,7 +251,7 @@ class WellRestedTestResult(
         if self.dots:
             flags.append('--dots')
         elif self.early_details:
-            flags.append('--early-details')
+            flags.append('-e')
         elif self.showAll:
             flags.append('-v')
         else:
@@ -268,7 +268,8 @@ class WellRestedTestResult(
                 '--wrt-conf %s' % self.wrt_conf,
                 '--run-url %s' % self.wrt_client._run_url])
         if self.storage:
-            flags.append('--storage %s' % self.storage)
+            flags.append('--storage %s/%s'
+                         % (self.storage, self.format_time_for_directory(self.start_time)))
         return flags
 
     @staticmethod
@@ -301,6 +302,9 @@ class WellRestedTestResult(
     def format_time(self, timestamp):
         return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S')
 
+    def format_time_for_directory(self, timestamp):
+        return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%dT%H_%M_%S')
+
     # run related methods
     def registerTests(self, tests):
         filtered_tests = [test for test in tests
@@ -329,6 +333,27 @@ class WellRestedTestResult(
             self.stream.writeln("Watch progress at: %s" % self.run_url)
             self.stream.writeln(self.separator2)
         unittest2.TextTestResult.startTestRun(self)
+        # modify self.storage for the current test run
+        if self.storage:
+            # ensure the directories exist
+            path = self.storage
+            try:
+                os.mkdir(path)
+            except os.error:  # already exists
+                pass
+            if self.worker:  # self.storage already has timestamp
+                path = os.path.join(path, str(self.worker))
+                try:
+                    os.mkdir(path)
+                except os.error:  # already exists
+                    pass
+            else:
+                path = os.path.join(path, self.format_time_for_directory(self.start_time))
+                try:
+                    os.mkdir(path)
+                except os.error:  # already exists
+                    pass
+            self.storage = path
 
     def stopTestRun(self, abort=False):
         self.end_time = time.time()
@@ -352,8 +377,6 @@ class WellRestedTestResult(
                         shutil.copyfileobj(src, self.failing_file)
                 except IOError:
                     pass
-        # if we're a worker, print the sumarizing stuff to
-        # stdout instead of stderr
         if self.worker:
             output = json.dumps({
                 'duration': elapsed_time,
@@ -609,16 +632,6 @@ class WellRestedTestResult(
 
     def print_or_append(self, test, details, reason, list):
         if self.storage:
-            timestamp = datetime.datetime.fromtimestamp(
-                self.start_time).strftime('%Y-%m-%dT%H_%M_%S')
-            # ensure the directories exist
-            try:
-                os.mkdir(self.storage)
-            except os.error:
-                try:
-                    os.mkdir('%s/%s' % (self.storage, timestamp))
-                except os.error:
-                    pass
             for name, value in details.items():
                 attachment = None
                 if value.content_type == content.URL:
