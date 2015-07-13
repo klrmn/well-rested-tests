@@ -655,13 +655,19 @@ class WellRestedTestResult(
                 else:
                     if value.content_type.type in ['image', 'application']:
                         tp = value.content_type.subtype
-                        attachment = value.iter_bytes()
+                        try:
+                            attachment = value.iter_bytes()
+                        except Exception:
+                            details[name] = content.unittest_traceback_content(sys.exc_info())
                     elif value.content_type.type == 'text':
                         if value.content_type.subtype == 'plain':
                             tp = value.content_type.type
                         else:
                             tp = value.content_type.subtype
-                        attachment = value.as_text().strip()
+                        try:
+                            attachment = value.as_text().strip()
+                        except Exception:
+                            details[name] = content.unittest_traceback_content(sys.exc_info())
                     if not attachment:
                         continue  # empty attachments pass thru
                     # get rid of weird stuff in pythonlogging name
@@ -675,7 +681,10 @@ class WellRestedTestResult(
                         filename = '%s-%s' % (self.test_start_time[test.id()], filename)
                     path = os.path.join(self.storage, filename)
                     with open(path, 'wb') as h:
-                        h.write(attachment)
+                        try:
+                            h.write(attachment)
+                        except Exception:
+                            details[name] = content.unittest_traceback_content(sys.exc_info())
                     details[name] = content.url_content(path)
         details = self._details_to_str(details)
         # only put failing / errored *tests* in failing file, not fixtures
