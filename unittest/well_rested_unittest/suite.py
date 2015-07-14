@@ -260,6 +260,8 @@ class ParallelSuite(unittest2.TestSuite):
         ]
         if self.debug:
             command.append('--debug')
+            if self.debug > 1:
+                command.append('--debug')
         command.extend(result.worker_flags())
         command.append('--from-file .worker%s' % self.worker)
         command.append(' '.join(self.testNames))

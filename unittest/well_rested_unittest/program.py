@@ -56,7 +56,7 @@ class FullyConfigurableTestProgram(unittest2.TestProgram):
         self.loaderClass = loaderClass
         self.suiteClass = suiteClass
         # parse args using classes' staticmethods
-        self.parseArgs(argv or sys.argv)  # args is for testing
+        self.parseArgs(argv or sys.argv)  # argv is for testing
         # create the instances
         try:
             self.testLoader = self.loaderClass.factory(self.loaderClass, self)
