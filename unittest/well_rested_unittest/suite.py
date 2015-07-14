@@ -256,7 +256,7 @@ class ParallelSuite(unittest2.TestSuite):
         # don't pipe stderr to stdout, or the dots won't be visible in real-time
         command = [
             'WRT_WORKER_ID=%s' % self.worker,
-            result.progName,
+            'wrtest',
         ]
         if self.debug:
             command.append('--debug')
