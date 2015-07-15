@@ -279,8 +279,7 @@ class WellRestedTestResult(
                 '--wrt-conf %s' % self.wrt_conf,
                 '--run-url %s' % self.wrt_client._run_url])
         if self.storage:
-            flags.append('--storage %s/%s'
-                         % (self.storage, self.format_time_for_directory(self.start_time)))
+            flags.append('--storage %s' % self.storage)
         if self.store_pass:
             flags.append('--store-pass')
         return flags
