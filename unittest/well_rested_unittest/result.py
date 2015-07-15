@@ -129,6 +129,7 @@ class WellRestedTestResult(
             progName=object.progName,
             color=object.color if hasattr(object, 'color') else False,
             update=object.update if hasattr(object, 'update') else False,
+            failing=object.failing if hasattr(object, 'failing') else False,
             timestamp=object.timestamp if hasattr(object, 'timestamp') else False,
             run_url=object.run_url if hasattr(object, 'run_url') else None,
             fail_percent=object.fail_percent if hasattr(object, 'fail_percent') else 0,
@@ -166,7 +167,7 @@ class WellRestedTestResult(
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
                  wrt_conf=None, progName=None, color=False,
-                 update=False, timestamp=False, run_url=None,
+                 update=False, failing=False, timestamp=False, run_url=None,
                  fail_percent=0, storage=None, store_pass=False, debug=0):
         """
         :param failfast: boolean (default False)
@@ -178,6 +179,7 @@ class WellRestedTestResult(
         :param color:    boolean (default False) color parallel output streams
         :param update:   boolean (default False) update previous test run
                          Note: update is not needed by workers.
+        :param failing:  boolean (default False) running previously failed tests
         :param timestamp: Include test start-time in output.
         :param run_url:   URL of run to be updated.
         :param fail_percent:
@@ -242,6 +244,7 @@ class WellRestedTestResult(
         self.showAll = verbosity > 1
         self.dots = verbosity == 1
         self.update = update
+        self.failing = failing
         if self.update and not run_url:
             run_url = 'previous'
         self.timestamp = timestamp
@@ -337,8 +340,11 @@ class WellRestedTestResult(
                     % e.message)
                 exit(1)
         if self.failing_file:
-            self.failing_file = unittest2.runner._WritelnDecorator(
-                open(self.failing_file, 'wb'))
+            if self.update and not self.failing:
+                fh = open(self.failing_file, 'ab')
+            else:
+                fh = open(self.failing_file, 'wb')
+            self.failing_fh = unittest2.runner._WritelnDecorator(fh)
         if self.showAll and self.wrt_client and not self.worker:
             self.stream.writeln("Watch progress at: %s" % self.run_url)
             self.stream.writeln(self.separator2)
@@ -380,8 +386,8 @@ class WellRestedTestResult(
                 status=status)
         testtools.TestResult.stopTestRun(self)
         if self.failing_file:
-            self.failing_file.close()
-            if status == 'aborted':
+            self.failing_fh.close()
+            if status == 'aborted' and not self.worker:
                 try:
                     with open('%s.bak' % self.failing_file, 'rb') as src:
                         shutil.copyfileobj(src, self.failing_file)
@@ -435,7 +441,7 @@ class WellRestedTestResult(
                     self.reasons[reason] = other_result['reasons'][reason]
             if self.failing_file:
                 with open('.failing%s' % other_result['worker']) as src:
-                    shutil.copyfileobj(src, self.failing_file)
+                    self.failing_fh.write(src.read())
 
     # test related methods
     def getDescription(self, test):
@@ -689,7 +695,7 @@ class WellRestedTestResult(
         details = self._details_to_str(details)
         # only put failing / errored *tests* in failing file, not fixtures
         if self.failing_file and lst is not None and lst in [self.errors, self.failures]:
-            self.failing_file.writeln(test.id())
+            self.failing_fh.writeln(test.id())
         description = self.getDescription(test)
         # don't try to print anything if we don't have a list to print to
         if self.early_details:
