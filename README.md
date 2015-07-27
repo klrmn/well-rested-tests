@@ -16,10 +16,8 @@ are not available at this time.
 figure out how to provision
 * consider using https://github.com/poise/application_python
   instead of https://github.com/maigfrga/django-vagrant-chef
-* store files on swift https://github.com/blacktorn/django-storage-swift
 * ldap auth
-* server-side for fixtures
-* handle attachments
+* handle database storage of attachments
 
 ### Provisioning Steps
 * python manage.py migrate
@@ -45,17 +43,10 @@ pip install [--force-reinstall] .
 Note: Due to dependencies which use pbr, installing via 'python setup.py install' is not recommended.
 Note: If blessings is installed, the --color option for the results will work.
 
-## TODO:
-* handle attachments
-* handle update existing run
-
 ## Console Scripts
-* wrtest - does not speak to well-rested-tests-server or
-  use a testresources-optimised suite by default
-* otest - uses a testresources-optimised suite, but doesn't speak to
-  well-rested-tests-server
-* wrt - uses a testresource-optimised suite and also speaks to the
-  well-rested-tests-server. A configuration file describing how to contact
+* wrtest - does not speak to well-rested-tests-server
+* wrt - speaks to the well-rested-tests-server.
+  A configuration file describing how to contact
   the well-rested-tests-server is expected. Copy .wrt.conf.template to
   .wrt.conf and modify to match your server / project.
 * --help may be specified for any of the above, for greater detail.
@@ -69,3 +60,7 @@ Note: If blessings is installed, the --color option for the results will work.
   that are better performed by hand
 * Note: If you're going to run `tests` in parallel, set --concurrency auto
   so that the tests of parallelism are tested one-at-a-time.
+
+## Integration Tests
+* require a vagrant-swift-all-in-one running
+  vagrant up && vagrant ssh; swift-init restart main

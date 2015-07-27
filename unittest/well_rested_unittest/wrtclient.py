@@ -6,32 +6,9 @@ import time
 import subprocess
 import ConfigParser
 import content
+from exceptions import *
 
 __unittest = True
-
-
-class WRTException(Exception):
-    pass
-
-
-class WRTConfNotFound(WRTException):
-    pass
-
-
-class WRTRevisionNotFound(WRTException):
-    pass
-
-
-class WRTProjectNotFound(WRTException):
-    pass
-
-
-class WRTUserNotFound(WRTException):
-    pass
-
-
-class WRTRequestFailed(WRTException):
-    pass
 
 
 class WRTClient(object):
