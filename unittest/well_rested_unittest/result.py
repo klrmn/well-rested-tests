@@ -5,12 +5,13 @@ import sys
 import os
 import time
 import datetime
-import argparse
 import wrtclient
 import json
 import shutil
 from threading import Lock
 import content
+import ConfigParser
+from exceptions import SwiftConfNotFound
 
 try:
     from blessings import Terminal
@@ -107,7 +108,9 @@ class WellRestedTestResult(
         group.add_argument('--update', dest='update', action='store_true',
                            help="Update previous test run (default False).")
         group.add_argument('-w', '--wrt-conf', dest='wrt_conf',
-                           help='Path to well-rested-tests config file')
+                           help='Path to well-rested-tests config file. See .wrt.conf.template')
+        group.add_argument('--swift-conf', dest='swift_conf',
+                           help='Path to swift config file. See .wrt-swift.conf.template')
         group.add_argument('--storage', dest='storage', action='store',
                            default=None,
                            help='Path at which to store details.')
@@ -126,6 +129,7 @@ class WellRestedTestResult(
             failing_file=object.failing_file if
                 hasattr(object, 'failing_file') else '.failing',
             wrt_conf=object.wrt_conf if hasattr(object, 'wrt_conf') else None,
+            swift_conf=object.swift_conf if hasattr(object, 'swift_conf') else None,
             progName=object.progName,
             color=object.color if hasattr(object, 'color') else False,
             update=object.update if hasattr(object, 'update') else False,
@@ -157,7 +161,11 @@ class WellRestedTestResult(
   --timestamp           Include test start-time in output (default False).
   --update              Update previous test run (default False).
   -w WRT_CONF, --wrt-conf WRT_CONF
-                        Path to well-rested-tests config file
+                        Path to well-rested-tests config file. See
+                        .wrt.conf.template
+  --swift-conf SWIFT_CONF
+                        Path to swift config file. See .wrt-
+                        swift.conf.template
   --storage STORAGE     Path at which to store details.
   --store-pass          Store (with --storage) or display (with -e) details
                         for passing tests (default False).
@@ -166,7 +174,7 @@ class WellRestedTestResult(
     def __init__(self, failfast=False,
                  uxsuccess_not_failure=False, verbosity=1,
                  failing_file='.failing',
-                 wrt_conf=None, progName=None, color=False,
+                 wrt_conf=None, swift_conf=None, progName=None, color=False,
                  update=False, failing=False, timestamp=False, run_url=None,
                  fail_percent=0, storage=None, store_pass=False, debug=0):
         """
@@ -175,6 +183,7 @@ class WellRestedTestResult(
         :param verbosity: 0 (none, default), 1 (dots),
                           2 (verbose), 3 (early-details)
         :param wrt_conf: path to well-rested-tests config file
+        :param swift_conf: path to swift config file
         :param progName: so the suite can find out what program name to use for parallelization
         :param color:    boolean (default False) color parallel output streams
         :param update:   boolean (default False) update previous test run
@@ -219,6 +228,8 @@ class WellRestedTestResult(
         self._test_run = None
         self.wrt_conf = None
         self.wrt_client = None
+        self.swift_conf = None
+        self.swift_config = None
         self.progName = progName
         self.absorbLock = Lock()
         self._expected_tests = 0
@@ -252,6 +263,26 @@ class WellRestedTestResult(
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
                 wrt_conf, self.stream, debug=debug > 1, run_url=run_url)
+        if swift_conf:
+            if os.path.isfile(swift_conf):
+                self.swift_conf = swift_conf
+                self.start_time = run_url  # overloaded
+                self.container = None
+                self.swift_config = ConfigParser.ConfigParser()
+                self.swift_config.read(swift_conf)
+            else:
+                raise SwiftConfNotFound('%s is not a file' % swift_conf)
+            from swiftclient import Connection
+            self.swift = Connection(self.swift_config.get('swift', 'AUTH_URL'),
+                                    user=self.swift_config.get('swift', 'USER'),
+                                    key=self.swift_config.get('swift', 'KEY'),
+                                    auth_version=self.swift_config.get('swift', 'AUTH_VERSION'),
+                                    tenant_name=self.swift_config.get('swift', 'TENANT'))
+            # optionally set object expiration
+            expire = self.swift_config.get('swift', 'EXPIRE_SECONDS')
+            self.object_headers = {}
+            if expire:
+                self.object_headers['X-Delete-After'] = expire
 
     def worker_flags(self):
         """The suite shouldn't need to know what the flags are."""
@@ -278,6 +309,11 @@ class WellRestedTestResult(
             flags.extend([
                 '--wrt-conf %s' % self.wrt_conf,
                 '--run-url %s' % self.wrt_client._run_url])
+        if self.swift_conf:
+            flags.extend([
+                '--swift-conf %s' % self.swift_conf,
+                '--run-url %s' % self.start_time,
+            ])
         if self.storage:
             flags.append('--storage %s' % self.storage)
         if self.store_pass:
@@ -298,6 +334,56 @@ class WellRestedTestResult(
                 'traceback': content.traceback_content(err, test),
                 'reason': content.text_content(err[1].__class__.__name__),
             }
+        return details
+
+    def _details_to_storage(self, test, status, details):
+        if details and (self.storage or self.swift_conf):
+            if not (self.store_pass or status in ['fail', 'skip', 'xfail']):
+                return details
+            for name, value in details.items():
+                attachment = None
+                if value.content_type == content.URL:
+                    continue  # urls pass-thru
+                else:
+                    if value.content_type.type in ['image', 'application']:
+                        tp = value.content_type.subtype
+                        try:
+                            attachment = value.iter_bytes()
+                        except Exception:
+                            details[name] = content.unittest_traceback_content(sys.exc_info())
+                    elif value.content_type.type == 'text':
+                        if value.content_type.subtype == 'plain':
+                            tp = value.content_type.type
+                        else:
+                            tp = value.content_type.subtype
+                        try:
+                            attachment = value.as_text().strip()
+                        except Exception:
+                            details[name] = content.unittest_traceback_content(sys.exc_info())
+                    if not attachment:
+                        continue  # empty attachments pass thru
+                    # get rid of weird stuff in pythonlogging name
+                    if ":''" in name:
+                        details.pop(name)
+                        name = name.replace(":''", "")
+                    name = name.replace(":''", "")
+                    filename = '%s-%s.%s' % (test.id(), name, tp)
+                    # don't overwrite files for fixtures
+                    if list == self.warnings:
+                        filename = '%s-%s' % (self.test_start_time[test.id()], filename)
+                    if self.storage:
+                        path = os.path.join(self.storage, filename)
+                        with open(path, 'wb') as h:
+                            try:
+                                h.write(attachment)
+                            except Exception:
+                                details[name] = content.unittest_traceback_content(sys.exc_info())
+                        details[name] = content.url_content(path)
+                    elif self.swift:
+                        self.swift.put_object(self.container, filename, attachment,
+                                              headers=self.object_headers)
+                        url = '%s/%s/%s' % (self.swift.url, self.container, filename)
+                        details[name] = content.url_content(url)
         return details
 
     def _process_reason(self, details):
@@ -326,7 +412,8 @@ class WellRestedTestResult(
             self.wrt_client.registerTests(filtered_tests)
 
     def startTestRun(self):
-        self.start_time = time.time()
+        if not self.start_time:  # may have been passed in in --run-url
+            self.start_time = time.time()
         if self.showAll and not self.worker:
             self.stream.writeln(self.separator2)
         if self.wrt_client and not self.worker:
@@ -349,6 +436,7 @@ class WellRestedTestResult(
             self.stream.writeln(self.separator2)
         unittest2.TextTestResult.startTestRun(self)
         # modify self.storage for the current test run
+        run_folder = self.format_time_for_directory(self.start_time)
         if self.storage:
             # ensure the directories exist
             path = self.storage
@@ -363,12 +451,21 @@ class WellRestedTestResult(
                 except os.error:  # already exists
                     pass
             else:
-                path = os.path.join(path, self.format_time_for_directory(self.start_time))
+                path = os.path.join(path, run_folder)
                 try:
                     os.mkdir(path)
                 except os.error:  # already exists
                     pass
             self.storage = path
+        elif self.swift_conf:
+            self.container = run_folder
+            from swiftclient import ClientException
+            try:
+                self.swift.get_container(self.container)
+            except ClientException:
+                self.swift.put_container(
+                    self.container, headers={'x-container-read': '.r:*'})
+
 
     def stopTestRun(self, abort=False):
         self.end_time = time.time()
@@ -487,6 +584,7 @@ class WellRestedTestResult(
     def addExpectedFailure(self, test, err=None, details=None):
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
+        details = self._details_to_storage(test, 'xfail', details)
         if self.wrt_client:
             details = self.wrt_client.markTestStatus(
                 test, 'xfail', details=details, reason=reason)
@@ -501,6 +599,7 @@ class WellRestedTestResult(
     def addError(self, test, err=None, details=None):
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
+        details = self._details_to_storage(test, 'fail', details)
         if self.wrt_client:
             details = self.wrt_client.markTestStatus(
                 test, 'fail', details=details, reason=reason)
@@ -525,6 +624,7 @@ class WellRestedTestResult(
     def addFailure(self, test, err=None, details=None):
         details = self._err_to_details(test, err, details)
         reason = self._process_reason(details)
+        details = self._details_to_storage(test, 'fail', details)
         if self.wrt_client:
             details = self.wrt_client.markTestStatus(
                 test, 'fail', details=details, reason=reason)
@@ -553,8 +653,10 @@ class WellRestedTestResult(
         self.skipped.append((self.getDescription(test), reason))
 
     def addSuccess(self, test, details=None):
+        details = self._details_to_storage(test, 'pass', details)
         if self.wrt_client:
-            self.wrt_client.markTestStatus(test, 'pass')
+            self.wrt_client.markTestStatus(
+                test, 'pass', details=details if self.store_pass else None)
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:
@@ -564,16 +666,19 @@ class WellRestedTestResult(
             self.print_or_append(test, details, "Pass", None)
 
     def addUnexpectedSuccess(self, test, details=None):
+        details = self._details_to_storage(test, 'xpass', details)
         if self.wrt_client:
-            self.wrt_client.markTestStatus(test, 'xpass')
+            self.wrt_client.markTestStatus(
+                test, 'xpass', details=details if self.store_pass else None)
         if self.showAll:
             self.stream.write("unexpected success")
         elif self.dots:
             self.stream.write("u")
             self.stream.flush()
-        self.unexpectedSuccesses.append(self.getDescription(test))
         if self.store_pass:
             self.print_or_append(test, details, "Pass", None)
+        else:
+            self.unexpectedSuccesses.append(self.getDescription(test))
 
     # fixture related methods
     def startFixture(self, fixture):
@@ -611,6 +716,7 @@ class WellRestedTestResult(
         """
         details = self._err_to_details(fixture, err, details)
         reason = self._process_reason(details)
+        details = self._details_to_storage(fixture, 'fail', details)
         if self.wrt_conf:
             details = self.wrt_client.markFixtureStatus(
                 fixture, 'fail', details, reason)
@@ -627,16 +733,19 @@ class WellRestedTestResult(
         """
         Use this method if you'd like to print a fixture success.
         """
+        details = self._details_to_storage(fixture, 'pass', details)
         if self.wrt_conf:
-            self.wrt_client.markFixtureStatus(fixture, 'pass')
+            self.wrt_client.markFixtureStatus(
+                fixture, 'pass', details=details if self.store_pass else None)
         if self.showAll:
             self.stream.write("ok")
         elif self.dots:
             self.stream.write(',')
             self.stream.flush()
-        self.infos.append(self.getDescription(fixture))
         if self.store_pass:
             self.print_or_append(fixture, details, "Pass", self.infos)
+        else:
+            self.infos.append(self.getDescription(fixture))
 
     # summarizing methods
     def wasSuccessful(self):
@@ -652,45 +761,6 @@ class WellRestedTestResult(
                         self.unexpectedSuccesses)
 
     def print_or_append(self, test, details, reason, lst):
-        if self.storage and details:
-            for name, value in details.items():
-                attachment = None
-                if value.content_type == content.URL:
-                    continue  # urls pass-thru
-                else:
-                    if value.content_type.type in ['image', 'application']:
-                        tp = value.content_type.subtype
-                        try:
-                            attachment = value.iter_bytes()
-                        except Exception:
-                            details[name] = content.unittest_traceback_content(sys.exc_info())
-                    elif value.content_type.type == 'text':
-                        if value.content_type.subtype == 'plain':
-                            tp = value.content_type.type
-                        else:
-                            tp = value.content_type.subtype
-                        try:
-                            attachment = value.as_text().strip()
-                        except Exception:
-                            details[name] = content.unittest_traceback_content(sys.exc_info())
-                    if not attachment:
-                        continue  # empty attachments pass thru
-                    # get rid of weird stuff in pythonlogging name
-                    if ":''" in name:
-                        details.pop(name)
-                        name = name.replace(":''", "")
-                    name = name.replace(":''", "")
-                    filename = '%s-%s.%s' % (test.id(), name, tp)
-                    # don't overwrite files for fixtures
-                    if list == self.warnings:
-                        filename = '%s-%s' % (self.test_start_time[test.id()], filename)
-                    path = os.path.join(self.storage, filename)
-                    with open(path, 'wb') as h:
-                        try:
-                            h.write(attachment)
-                        except Exception:
-                            details[name] = content.unittest_traceback_content(sys.exc_info())
-                    details[name] = content.url_content(path)
         details = self._details_to_str(details)
         # only put failing / errored *tests* in failing file, not fixtures
         if self.failing_file and lst is not None and lst in [self.errors, self.failures]:

@@ -1,0 +1,8 @@
+[swift]
+AUTH_URL: <auth_url>
+AUTH_VERSION: 1
+TENANT:
+USER: <username>
+KEY: <password>
+# 30 days
+EXPIRE_SECONDS: 2592000

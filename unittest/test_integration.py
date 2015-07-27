@@ -11,12 +11,12 @@ from well_rested_unittest.result import ColorizedWritelnDecorator
 
 class DBRun(well_rested_unittest.ReportingTestResourceManager):
 
-    config_file = '.wrt-database.conf'
+    config_flags = '--wrt-conf .wrt-sample-tests.conf'
 
     def make(self, dependency_resources):
         try:
             subprocess.check_output(
-                'wrt -v --debug --wrt-conf %s sample_tests' % self.config_file,
+                'wrt -v --debug %s sample_tests' % self.config_flags,
                 shell=True, stderr=subprocess.STDOUT)
         except (subprocess.CalledProcessError,
                 requests.exceptions.ConnectionError) as e:
@@ -33,7 +33,9 @@ DBRunRM = DBRun()
 
 class SwiftRun(DBRun):
 
-    config_file = '.wrt-swift.conf'
+    config_flags = '--wrt-conf .wrt-sample-tests.conf ' \
+                   '--swift-conf .wrt-swift.conf'
+
 SwiftRunRM = SwiftRun()
 
 

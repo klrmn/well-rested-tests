@@ -1,8 +1,6 @@
 import requests
 import os
-import sys
 import json
-import time
 import subprocess
 import ConfigParser
 import content
@@ -29,7 +27,6 @@ class WRTClient(object):
             self.server = self.config.get('default', 'SERVER')
             self.project_name = self.config.get('default', 'PROJECT_NAME')
             self.protocol = self.config.get('default', 'PROTOCOL')
-            self.storage = self.config.get('default', 'STORAGE')
         except ConfigParser.Error as e:
             raise WRTConfigParamNotFound(e.message)
         self.session.mount(
@@ -43,13 +40,6 @@ class WRTClient(object):
         self._tags = []
         self._existing_tests = {}
         self._existing_fixtures = {}
-        if self.storage == 'swift':
-            from swiftclient import Connection
-            self.swift = Connection(self.config.get('swift', 'AUTH_URL'),
-                                    user=self.config.get('swift', 'USER'),
-                                    key=self.config.get('swift', 'KEY'),
-                                    auth_version=self.config.get('swift', 'AUTH_VERSION'),
-                                    tenant_name=self.config.get('swift', 'TENANT'))
         if self.debug:
             self.stream.writeln(
                 'WRTClient created for %s/%s running %s on %s' %
@@ -356,70 +346,43 @@ class WRTClient(object):
     def markTestStatus(self, test, status, reason=None, details=None):
         result_url = self._existing_tests[test.id()]['result_url']
         # upload details
-        if status in ['fail', 'skip', 'xfail'] and details:
-            if self.storage == 'swift':
-                from swiftclient import ClientException
-                try:
-                    self.swift.get_container(self._run_id)
-                except ClientException:
-                    self.swift.put_container(
-                        self._run_id, headers={'x-container-read': '.r:*'})
+        if details:
             for name, value in details.items():
-                # TODO: contemplate whether all content types are created equal
-                attachment = None
                 if value.content_type == content.URL:
-                    continue  # urls pass-thru to detail stage
+                    url = value.as_text().strip()  # urls pass-thru to detail stage
+                    tp = url.split('.')[-1]
                 else:
+                    attachment = None
                     if value.content_type.type == 'application':
-                        type = value.content_type.subtype
+                        tp = value.content_type.subtype
                         attachment = value.as_bytes()
                     elif value.content_type.type == 'text':
-                        type = value.content_type.type
+                        tp = value.content_type.type
                         attachment = value.as_text().strip()
                     if not attachment:
                         continue  # empty attachments pass thru
-                    # get rid of weird stuff in pythonlogging name
-                    if ":''" in name:
-                        details.pop(name)
-                        name = name.replace(":''", "")
                     # object named for test id, content name and type
-                    filename = '%s-%s.%s' % (test.id(), name, type)
-
-                    if self.storage == 'swift':
-                        from swiftclient import ClientException
-                        try:
-                            self.swift.get_container(self._run_id)
-                        except ClientException:
-                            self.swift.put_container(self._run_id)
-                        # optionally set object expiration
-                        expire = self.config.get('swift', 'EXPIRE_SECONDS')
-                        headers = {}
-                        if expire:
-                            headers['X-Delete-After'] = expire
-                        self.swift.put_object(self._run_id, filename, attachment,
-                                              headers=headers)
-                        url = '%s/%s/%s' % (self.swift.url, self._run_id, filename)
-                    elif self.storage == 'database':
-                        # TODO: chunked?
-                        headers = {
-                            'Content-Type': '%s/%s' % (
-                                value.content_type.type, value.content_type.subtype),
-                            'Content-length': len(attachment),
-                            'Content-Disposition': 'attachment; filename=%s' % filename
-                        }
-                        if self.debug:
-                            self.stream.writeln('uploading attachment %s %s %s'
-                                                % (self.attachments_url, name, headers))
-                        resp = self.session.post(self.attachments_url,
-                                                 data={'file': attachment},
-                                                 headers=headers)
-                        self.raise_for_status(resp)
-                        url = json.loads(resp.text)['file_url']
+                    filename = '%s-%s.%s' % (test.id(), name, tp)
+                    # TODO: chunked?
+                    headers = {
+                        'Content-Type': '%s/%s' % (
+                            value.content_type.type, value.content_type.subtype),
+                        'Content-length': len(attachment),
+                        'Content-Disposition': 'attachment; filename=%s' % filename
+                    }
+                    if self.debug:
+                        self.stream.writeln('uploading attachment %s %s %s'
+                                            % (self.attachments_url, name, headers))
+                    resp = self.session.post(self.attachments_url,
+                                             data={'file': attachment},
+                                             headers=headers)
+                    self.raise_for_status(resp)
+                    url = json.loads(resp.text)['file_url']
 
                 # create a detail by attaching the attachment to a result
                 data = {
                     'file_url': url,
-                    'file_type': type,
+                    'file_type': tp,
                     'name': name,
                     'result': result_url,
                 }
@@ -501,24 +464,18 @@ class WRTClient(object):
         result_url = self._existing_fixtures[fixture.id()]['result_url']
         # upload details
         if status == 'fail' and details:
-            if self.storage == 'swift':
-                from swiftclient import ClientException
-                try:
-                    self.swift.get_container(self._run_id)
-                except ClientException:
-                    self.swift.put_container(
-                        self._run_id, headers={'x-container-read': '.r:*'})
             for name, value in details.items():
                 # TODO: contemplate whether all content types are created equal
-                attachment = None
                 if value.content_type == content.URL:
-                    continue  # urls pass-thru to detail stage
+                    url = value.as_text().strip()
+                    tp = url.split('.')[-1]
                 else:
+                    attachment = None
                     if value.content_type.type == 'application':
-                        type = value.content_type.subtype
+                        tp = value.content_type.subtype
                         attachment = value.as_bytes()
                     elif value.content_type.type == 'text':
-                        type = value.content_type.type
+                        tp = value.content_type.type
                         attachment = value.as_text().strip()
                     if not attachment:
                         continue  # empty attachments pass thru
@@ -529,38 +486,28 @@ class WRTClient(object):
                     # object named for result id, fixture id, content name and type
                     # (fixture id isn't unique per run)
                     filename = '%s-%s-%s.%s' % (
-                        self.id_from_url(result_url), fixture.id(), name, type)
+                        self.id_from_url(result_url), fixture.id(), name, tp)
 
-                    if self.storage == 'swift':
-                        # optionally set object expiration
-                        expire = self.config.get('swift', 'EXPIRE_SECONDS')
-                        headers = {}
-                        if expire:
-                            headers['X-Delete-After'] = expire
-                        self.swift.put_object(self._run_id, filename, attachment,
-                                              headers=headers)
-                        url = '%s/%s/%s' % (self.swift.url, self._run_id, filename)
-                    elif self.storage == 'database':
-                        # TODO: chunked?
-                        headers = {
-                            'Content-Type': '%s/%s' % (
-                                value.content_type.type, value.content_type.subtype),
-                            'Content-length': len(attachment),
-                            'Content-Disposition': 'attachment; filename=%s' % filename
-                        }
-                        if self.debug:
-                            self.stream.writeln('uploading attachment %s %s %s'
-                                                % (self.attachments_url, name, headers))
-                        resp = self.session.post(self.attachments_url,
-                                                 data={'file': attachment},
-                                                 headers=headers)
-                        self.raise_for_status(resp)
-                        url = json.loads(resp.text)['file_url']
+                    # TODO: chunked?
+                    headers = {
+                        'Content-Type': '%s/%s' % (
+                            value.content_type.type, value.content_type.subtype),
+                        'Content-length': len(attachment),
+                        'Content-Disposition': 'attachment; filename=%s' % filename
+                    }
+                    if self.debug:
+                        self.stream.writeln('uploading attachment %s %s %s'
+                                            % (self.attachments_url, name, headers))
+                    resp = self.session.post(self.attachments_url,
+                                             data={'file': attachment},
+                                             headers=headers)
+                    self.raise_for_status(resp)
+                    url = json.loads(resp.text)['file_url']
 
                 # create a detail by attaching the attachment to a result
                 data = {
                     'file_url': url,
-                    'file_type': type,
+                    'file_type': tp,
                     'name': name,
                     'result': result_url,
                 }
