@@ -263,6 +263,9 @@ class WellRestedTestResult(
             self.wrt_conf = wrt_conf
             self.wrt_client = wrtclient.WRTClient(
                 wrt_conf, self.stream, debug=debug > 1, run_url=run_url)
+            if self.storage:
+                sys.stderr.write('\nWarning: details stored locally cannot be uploaded to'
+                                 'well-rested-tests server.\n')
         if swift_conf:
             if os.path.isfile(swift_conf):
                 self.swift_conf = swift_conf
@@ -381,7 +384,7 @@ class WellRestedTestResult(
                                 h.write(attachment)
                             except Exception:
                                 details[name] = content.unittest_traceback_content(sys.exc_info())
-                        details[name] = content.url_content(path)
+                        details[name] = content.url_content('file://%s' % path)
                     elif self.swift:
                         self.swift.put_object(self.container, filename, attachment,
                                               headers=self.object_headers)

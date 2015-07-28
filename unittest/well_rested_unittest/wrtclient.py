@@ -351,6 +351,11 @@ class WRTClient(object):
                 if value.content_type == content.URL:
                     url = value.as_text().strip()  # urls pass-thru to detail stage
                     tp = url.split('.')[-1]
+                    # we can't upload things sent to local storage
+                    if url.startswith('file://'):
+                        if self.debug:
+                            print('skipping upload of %s' % name)
+                        continue
                 else:
                     attachment = None
                     if value.content_type.type == 'application':
@@ -462,6 +467,11 @@ class WRTClient(object):
                 if value.content_type == content.URL:
                     url = value.as_text().strip()
                     tp = url.split('.')[-1]
+                    # we can't upload things sent to local storage
+                    if url.startswith('file://'):
+                        if self.debug:
+                            print('skipping upload of %s' % name)
+                        continue
                 else:
                     attachment = None
                     if value.content_type.type == 'application':
