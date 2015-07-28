@@ -337,7 +337,15 @@ class WellRestedTestResult(
         return details
 
     def _details_to_storage(self, test, status, details):
-        if details and (self.storage or self.swift_conf):
+        if not details:
+            return None
+        # normalize the names
+        for name, value in details.items():
+            if ":''" in name:
+                details.pop(name)
+                name = name.replace(":''", "")
+                details[name] = value
+        if self.storage or self.swift_conf:
             if not (self.store_pass or status in ['fail', 'skip', 'xfail']):
                 return details
             for name, value in details.items():
@@ -362,11 +370,6 @@ class WellRestedTestResult(
                             details[name] = content.unittest_traceback_content(sys.exc_info())
                     if not attachment:
                         continue  # empty attachments pass thru
-                    # get rid of weird stuff in pythonlogging name
-                    if ":''" in name:
-                        details.pop(name)
-                        name = name.replace(":''", "")
-                    name = name.replace(":''", "")
                     filename = '%s-%s.%s' % (test.id(), name, tp)
                     # don't overwrite files for fixtures
                     if list == self.warnings:

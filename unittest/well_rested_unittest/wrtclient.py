@@ -364,18 +364,11 @@ class WRTClient(object):
                     # object named for test id, content name and type
                     filename = '%s-%s.%s' % (test.id(), name, tp)
                     # TODO: chunked?
-                    headers = {
-                        'Content-Type': '%s/%s' % (
-                            value.content_type.type, value.content_type.subtype),
-                        'Content-length': len(attachment),
-                        'Content-Disposition': 'attachment; filename=%s' % filename
-                    }
                     if self.debug:
-                        self.stream.writeln('uploading attachment %s %s %s'
-                                            % (self.attachments_url, name, headers))
+                        self.stream.writeln('uploading attachment %s %s'
+                                            % (self.attachments_url, name))
                     resp = self.session.post(self.attachments_url,
-                                             data={'file': attachment},
-                                             headers=headers)
+                                             files={'file': (filename, attachment)})
                     self.raise_for_status(resp)
                     url = json.loads(resp.text)['file_url']
 

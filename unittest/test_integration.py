@@ -1,8 +1,7 @@
 import well_rested_unittest
 import subprocess
 import requests
-import ConfigParser
-import os
+import urllib
 import sys
 import json
 from well_rested_unittest.wrtclient import WRTClient
@@ -12,11 +11,12 @@ from well_rested_unittest.result import ColorizedWritelnDecorator
 class DBRun(well_rested_unittest.ReportingTestResourceManager):
 
     config_flags = '--wrt-conf .wrt-sample-tests.conf'
+    option = 'db'
 
     def make(self, dependency_resources):
         try:
             subprocess.check_output(
-                'wrt -v --debug %s sample_tests' % self.config_flags,
+                'OPTION=%s wrt -v --debug %s sample_tests' % (self.option, self.config_flags),
                 shell=True, stderr=subprocess.STDOUT)
         except (subprocess.CalledProcessError,
                 requests.exceptions.ConnectionError) as e:
@@ -29,14 +29,6 @@ class DBRun(well_rested_unittest.ReportingTestResourceManager):
     def clean(self, resource):
         pass
 DBRunRM = DBRun()
-
-
-class SwiftRun(DBRun):
-
-    config_flags = '--wrt-conf .wrt-sample-tests.conf ' \
-                   '--swift-conf .wrt-swift.conf'
-
-SwiftRunRM = SwiftRun()
 
 
 class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
@@ -111,7 +103,7 @@ class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
             print detail['file_url']
             resp = requests.get(detail['file_url'])
             resp.raise_for_status()
-            detail_content[detail['name']] = resp.text
+            detail_content[detail['name']] = urllib.unquote_plus(resp.text.split('=')[-1])
         return detail_content
 
     def test_run(self):
@@ -137,46 +129,6 @@ class TestDBIntegration(well_rested_unittest.ResourcedTestCase):
         # passing tests should not have details
         details = self.get_details(result['id'])
         self.assertFalse(details, details)
-
-    def test_fail(self):
-        # fetch the result for a failing test in this run
-        result = self.get_test_result(
-            'sample_tests.test_resourced_test_case.TestResourcedTestCase.test_fail')
-        self.assertEqual(result['status'], 'fail')
-        # don't test details until MEDIA_URL has been sorted out
-        details = self.get_details(result['id'])
-        self.assertEqual(len(details), 3, details)
-
-    def test_error(self):
-        # fetch the result for a failing test in this run
-        result = self.get_test_result(
-            'sample_tests.test_resourced_test_case.TestResourcedTestCase.test_error')
-        self.assertEqual(result['status'], 'fail')
-        # don't test details until MEDIA_URL has been sorted out
-        details = self.get_details(result['id'])
-        self.assertEqual(len(details), 3, details)
-
-    def test_fixture_error(self):
-        # fetch the result for a failing fixture in this run
-        result = self.get_test_result('Destroying_DestroyFailResource')
-        self.assertEqual(result['status'], 'fail')
-        # don't test details until MEDIA_URL has been sorted out
-        details = self.get_details(result['id'])
-        self.assertEqual(len(details), 4, details)
-
-    def test_skip(self):
-        # fetch the result for a skipped test in this run
-        result = self.get_test_result(
-            'sample_tests.test_resourced_test_case.TestResourcedTestCase.test_skip')
-        self.assertEqual(result['status'], 'skip')
-        # skipped tests should not have details
-        details = self.get_details(result['id'])
-        self.assertFalse(details, details)
-
-
-class TestSwiftIntegration(TestDBIntegration):
-
-    resources = [('CalledProcessError', SwiftRunRM)]
 
     def test_fail(self):
         # fetch the result for a failing test in this run
@@ -213,3 +165,40 @@ class TestSwiftIntegration(TestDBIntegration):
         self.assertIn("booga booga", details['traceback'])
         self.assertIn('message to stdout', details['stdout'])
         self.assertIn('message to stderr', details['stderr'])
+
+    def test_skip(self):
+        # fetch the result for a skipped test in this run
+        result = self.get_test_result(
+            'sample_tests.test_resourced_test_case.TestResourcedTestCase.test_skip')
+        self.assertEqual(result['status'], 'skip')
+        # skipped tests should not have details
+        details = self.get_details(result['id'])
+        self.assertFalse(details, details)
+
+
+class SwiftRun(DBRun):
+
+    config_flags = '--wrt-conf .wrt-sample-tests.conf ' \
+                   '--swift-conf .wrt-swift.conf'
+    option = 'swift'
+
+SwiftRunRM = SwiftRun()
+
+
+class TestSwiftIntegration(TestDBIntegration):
+
+    resources = [('CalledProcessError', SwiftRunRM)]
+
+    def get_details(self, result_id):
+        resp = self.wrtclient.session.get(self.wrtclient.details_url, params={
+            'result': result_id,
+        })
+        self.wrtclient.raise_for_status(resp)
+        details = json.loads(resp.text)
+        detail_content = {}
+        for detail in details:
+            print detail['file_url']
+            resp = requests.get(detail['file_url'])
+            resp.raise_for_status()
+            detail_content[detail['name']] = resp.text
+        return detail_content

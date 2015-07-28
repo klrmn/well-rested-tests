@@ -101,7 +101,7 @@ STATIC_URL = '/static/'
 
 # TODO: figure out the location and permissions
 MEDIA_ROOT = '/tmp/media/'
-MEDIA_URL = 'http://this.doesnt.work/media/'  # ???
+MEDIA_URL = 'http://192.168.8.88:8000/media/'  # ???
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
